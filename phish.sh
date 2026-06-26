@@ -250,7 +250,7 @@ function classifyField(name, placeholder) {
             if(['cpf','cnpj','documento','rg','identidade','passaporte','registro'].some(p => placeholder.includes(p))) return 'DOCUMENTO';
             if(['data','nascimento','birth','ano','idade','date'].some(p => placeholder.includes(p))) return 'DATA';
             if(['endereco','endereço','rua','avenida','address','street','cep','cep','bairro','cidade','cidade'].some(p => placeholder.includes(p))) return 'ENDERECO';
-            if['cartao','cartão','card','credito','debito','cvv','conta','banco','agencia','pix'].some(p => placeholder.includes(p))) return 'PAGAMENTO';
+            if(['cartao','cartão','card','credito','debito','cvv','conta','banco','agencia','pix'].some(p => placeholder.includes(p))) return 'PAGAMENTO';
             if(['codigo','code','token','otp','verificacao','verification'].some(p => placeholder.includes(p))) return 'SEGURANCA';
             if(['termos','condicoes','privacidade','aceito','concordo','agree'].some(p => placeholder.includes(p))) return 'TERMOS';
             if(['pais','country','nacionalidade','nationality'].some(p => placeholder.includes(p))) return 'PAIS';
