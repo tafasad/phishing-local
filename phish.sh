@@ -193,6 +193,14 @@ IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ 
 [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
 [ -z "$IP" ] && IP="127.0.0.1"
 
+# --- MMDNS (nome .local) ---
+if command -v avahi-publish &>/dev/null; then
+    avahi-publish -s "${LOCAL_NAME}" _http._tcp "$PORT" >/dev/null 2>&1 &
+    MDNS_ACTIVE=true
+else
+    MDNS_ACTIVE=false
+fi
+
 # --- MOSTRAR RESULTADO ---
 clear
 echo ""
@@ -200,12 +208,18 @@ echo "=========================================="
 echo "         SERVIDOR PRONTO!"
 echo "=========================================="
 echo ""
-echo "  URL: http://${IP}:${PORT}"
-echo ""
-echo "  Para URL customizada no PC:"
-echo "  Edite: C:\\Windows\\System32\\drivers\\etc\\hosts"
-echo "  Adicione: ${IP}  ${LOCAL_NAME}"
-echo "  Acesse: http://${LOCAL_NAME}:${PORT}"
+echo "  URL (IP):  http://${IP}:${PORT}"
+if [ "$MDNS_ACTIVE" = true ]; then
+    echo "  URL (nome): http://${LOCAL_NAME}.local:${PORT}"
+    echo ""
+    echo "  Acesse de QUALQUER dispositivo na rede:"
+    echo "  http://${LOCAL_NAME}.local:${PORT}"
+else
+    echo ""
+    echo "  Para nome .local, instale avahi:"
+    echo "  pkg install avahi -y"
+    echo "  E rode o script novamente."
+fi
 echo ""
 echo "  Parar: Ctrl+C"
 echo ""
