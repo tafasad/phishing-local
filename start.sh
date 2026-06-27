@@ -15,6 +15,18 @@ CAPTURED_DIR="$SCRIPT_DIR/captured_sites"
 mkdir -p "$CAPTURED_DIR" "$SITE_DIR"
 
 # =============================================
+# VERIFICAR NODE.JS
+# =============================================
+if ! command -v node &>/dev/null; then
+    echo -e "${YELLOW}[...] Node.js não encontrado. Instalando...${NC}"
+    pkg install -y nodejs 2>/dev/null || {
+        echo -e "${RED}[ERRO] Falha ao instalar Node.js. Instale manualmente:${NC}"
+        echo -e "${WHITE}  pkg install nodejs${NC}"
+        exit 1
+    }
+fi
+
+# =============================================
 # OBTER IP AUTOMÁTICO
 # =============================================
 get_my_ip() {
@@ -50,10 +62,12 @@ clone_site() {
 
     # 1. Baixar HTML principal
     echo -e "${YELLOW}[1/4] Baixando HTML...${NC}"
-    eval "$curl_base -H '$ua' -o '$SITE_DIR/index.html' '$target_url'" 2>/dev/null
+    eval "$curl_base -H '$ua' -o '$SITE_DIR/index.html' '$target_url'" > "$SCRIPT_DIR/curl.log" 2>&1
 
     if [ ! -s "$SITE_DIR/index.html" ]; then
         echo -e "${RED}[ERRO] Falha ao baixar o site.${NC}"
+        echo -e "${YELLOW}  Log: $SCRIPT_DIR/curl.log${NC}"
+        cat "$SCRIPT_DIR/curl.log" 2>/dev/null
         return 1
     fi
     echo -e "${GREEN}  → $(wc -c < "$SITE_DIR/index.html") bytes${NC}"
