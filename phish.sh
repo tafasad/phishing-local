@@ -255,7 +255,15 @@ SERVEREOF
         echo "[...] Criando tunnel... aguarde..."
         echo ""
 
-        cloudflared tunnel --url "http://0.0.0.0:$PORT" > /tmp/cf_tunnel.log 2>&1 &
+        # Usar IP real do Wi-Fi (0.0.0.0 pode nao funcionar no Termux)
+        if [ "$IP" != "127.0.0.1" ] && [ -n "$IP" ]; then
+            CF_TARGET="http://${IP}:$PORT"
+        else
+            CF_TARGET="http://localhost:$PORT"
+        fi
+        
+        echo "[DEBUG] Cloudflared -> $CF_TARGET" > /tmp/cf_debug.log
+        cloudflared tunnel --url "$CF_TARGET" > /tmp/cf_tunnel.log 2>&1 &
         CF_PID=$!
 
         for i in $(seq 1 20); do
@@ -269,7 +277,10 @@ SERVEREOF
         if [ -n "$CF_URL" ]; then
             echo "[OK] Tunnel criado!"
         else
-            echo "[AVISO] Tunnel nao gerou URL em 20s. Usando IP local."
+            echo "[AVISO] Tunnel nao gerou URL em 20s."
+            echo "[DEBUG] Log do cloudflared:"
+            cat /tmp/cf_tunnel.log | head -5
+            echo "[INFO] Usando IP local: $CF_TARGET"
         fi
     fi
 
