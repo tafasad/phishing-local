@@ -186,12 +186,20 @@ SERVEREOF
 
     # --- OBTER IP E PORT ---
     PORT=8080
-    IP=$(hostname -I 2>/dev/null | tr -d '
-' | awk '{print $1}')
-    [ -z "$IP" ] && IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    export PORT
+
+    # Pega IP do Wi-Fi (prioridade: wlan0 > eth0 > qualquer um)
+    IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
     [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
     [ -z "$IP" ] && IP="127.0.0.1"
-    export PORT
+
+    # --- INICIAR SERVIDOR ---
+    echo ""
+    echo "[*] Iniciando servidor..."
+    echo ""
+    node "$SERVER_FILE" &
+    SERVER_PID=$!
+    sleep 2
 
     # --- CLOUDFLARE TUNNEL ---
     CF_INSTALLED=false
@@ -209,7 +217,7 @@ SERVEREOF
         echo "[OK] Cloudflared ja instalado!"
         echo ""
         echo "  1) Usar Cloudflare Tunnel (recomendado)"
-        echo "  2) Usar so o IP local"
+        echo "  2) Usar so o IP local ($IP:8080)"
         echo ""
         echo -n "Escolha: "
         read CF_CHOICE
@@ -219,35 +227,30 @@ SERVEREOF
         echo "Para instalar (recomendado):"
         echo "  pkg install cloudflared"
         echo ""
-        echo "  1) Instalar cloudflared agora"
-        echo "  2) Usar so o IP local"
+        echo "  1) Usar so o IP local ($IP:8080)"
+        echo "  2) Instalar cloudflared e usar Tunnel"
         echo ""
         echo -n "Escolha: "
         read CF_CHOICE
 
-        if [ "$CF_CHOICE" = "1" ]; then
+        if [ "$CF_CHOICE" = "2" ]; then
             echo "[...] Instalando cloudflared..."
             pkg install cloudflared -y 2>/dev/null
             if command -v cloudflared &>/dev/null; then
                 CF_INSTALLED=true
-                echo "[OK] Instalado!"
+                CF_CHOICE=1
+                echo "[OK] Instalado! Usando Cloudflare Tunnel."
             else
                 echo "[ERRO] Falha na instalacao. Usando IP local."
-                CF_CHOICE=2
+                CF_CHOICE=1
             fi
+        else
+            CF_CHOICE=2
         fi
     fi
 
-    # --- INICIAR SERVIDOR ---
-    echo ""
-    echo "[*] Iniciando servidor..."
-    echo ""
-    node "$SERVER_FILE" &
-    SERVER_PID=$!
-    sleep 2
-
     CF_URL=""
-    if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ]; then
+    if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ] && command -v cloudflared &>/dev/null; then
         echo ""
         echo "[...] Criando tunnel... aguarde..."
         echo ""
@@ -266,7 +269,7 @@ SERVEREOF
         if [ -n "$CF_URL" ]; then
             echo "[OK] Tunnel criado!"
         else
-            echo "[AVISO] Tunnel nao gerou URL em 20s. Verifique o cloudflared."
+            echo "[AVISO] Tunnel nao gerou URL em 20s. Usando IP local."
         fi
     fi
 
