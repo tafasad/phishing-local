@@ -289,9 +289,17 @@ PHPEOF
             TAIL_PID=$!
         else
             TAIL_PID=""
-        trap 'kill $SERVER_PID $TAIL_PID 2>/dev/null; wait $SERVER_PID $TAIL_PID 2>/dev/null; echo ""; echo "[OK] Servidor parado!"; sleep 1; break' INT TERM
-        wait $SERVER_PID
+        fi
+        rm -f /tmp/phish_stop
+        trap 'kill $SERVER_PID $TAIL_PID 2>/dev/null; rm -f /tmp/phish_stop; echo ""; echo "[OK] Servidor parado!"' INT TERM
+        while [ ! -f /tmp/phish_stop ]; do
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
         kill $TAIL_PID 2>/dev/null
+        wait $SERVER_PID 2>/dev/null
         wait $TAIL_PID 2>/dev/null
 
         echo ""
