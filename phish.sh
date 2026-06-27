@@ -184,7 +184,8 @@ http.createServer((req,res)=>{
 }).listen(PORT,'0.0.0.0',()=>console.log('Servidor ativo porta '+PORT));
 SERVEREOF
 
-    # --- OBTER IP ---
+    # --- OBTER IP E PORT ---
+    PORT=8080
     IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
     [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
     [ -z "$IP" ] && IP="127.0.0.1"
