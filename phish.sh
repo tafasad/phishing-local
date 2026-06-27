@@ -186,9 +186,12 @@ SERVEREOF
 
     # --- OBTER IP E PORT ---
     PORT=8080
-    IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    IP=$(hostname -I 2>/dev/null | tr -d '
+' | awk '{print $1}')
+    [ -z "$IP" ] && IP=$(ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
     [ -z "$IP" ] && IP=$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
     [ -z "$IP" ] && IP="127.0.0.1"
+    export PORT
 
     # --- CLOUDFLARE TUNNEL ---
     CF_INSTALLED=false
@@ -283,7 +286,7 @@ SERVEREOF
         echo "  (a pessoa clica e abre o site clonado)"
     else
         echo "  Acesse de qualquer dispositivo na mesma rede:"
-        echo "  http://${IP}:${PORT}"
+        echo "  http://${IP}:8080"
     fi
     echo ""
     echo "  Parar: Ctrl+C"
