@@ -466,12 +466,12 @@ show_tunnel_link() {
 show_status() {
     clear
     echo -e "${PURPLE}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║         📊 STATUS DO SISTEMA             ║${NC}"
-    echo -e "${PURPLE}╚═══════════════════════════════════════════╝${NC}"
+    echo -e "${PURPLE}║         📊 STATUS DO SISTEMA              ║${NC}"
+    echo -e "${PURPLE}╠═══════════════════════════════════════════╣${NC}"
     echo ""
 
     # Node.js
-    echo -n "  ${YELLOW}Node.js:${NC}       "
+    echo -n "  ${YELLOW}Node.js:${NC}         "
     if command -v node &>/dev/null; then
         echo -e "${GREEN}✓ $(node --version 2>/dev/null)${NC}"
     else
@@ -479,7 +479,7 @@ show_status() {
     fi
 
     # curl
-    echo -n "  ${YELLOW}Curl:${NC}          "
+    echo -n "  ${YELLOW}Curl:${NC}            "
     if command -v curl &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -487,7 +487,7 @@ show_status() {
     fi
 
     # Proxychains
-    echo -n "  ${YELLOW}ProxyChains:${NC}    "
+    echo -n "  ${YELLOW}ProxyChains:${NC}      "
     if command -v proxychains4 &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -495,7 +495,7 @@ show_status() {
     fi
 
     # Cloudflared
-    echo -n "  ${YELLOW}Cloudflared:${NC}    "
+    echo -n "  ${YELLOW}Cloudflared:${NC}      "
     if command -v cloudflared &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -503,7 +503,7 @@ show_status() {
     fi
 
     # grep -oE
-    echo -n "  ${YELLOW}Grep -oE:${NC}      "
+    echo -n "  ${YELLOW}Grep -oE:${NC}        "
     if echo "test" | grep -qe "test" 2>/dev/null; then
         echo -e "${GREEN}✓${NC}"
     else
@@ -511,67 +511,110 @@ show_status() {
     fi
 
     echo ""
+    echo -e "  ${PURPLE}──── Processos ────${NC}"
 
-    # Servidor
-    echo -n "  ${YELLOW}Servidor:${NC}       "
+    # Servidor — verificar PID E processo node vivo
+    echo -n "  ${YELLOW}Servidor:${NC}         "
+    local alive=0
     if [ -f "$SCRIPT_DIR/.server.pid" ]; then
         local pid=$(cat "$SCRIPT_DIR/.server.pid")
         if kill -0 "$pid" 2>/dev/null; then
             echo -e "${GREEN}✓ Rodando (PID: $pid)${NC}"
+            alive=1
         else
-            echo -e "${RED}✗ Parou (PID: $pid)${NC}"
+            echo -e "${RED}✗ PID $pid parou${NC}"
         fi
-    else
-        echo -e "${RED}✗ Desligado${NC}"
+    fi
+    # Mesmo sem PID, verificar se node tá rodando
+    if [ "$alive" = "0" ]; then
+        local node_pids=$(pgrep -f "node.*server" 2>/dev/null)
+        if [ -n "$node_pids" ]; then
+            echo -e "${GREEN}    → Node vivo: $node_pids (sem PID file)${NC}"
+            alive=1
+        else
+            echo -e "${RED}✗ Desligado${NC}"
+        fi
     fi
 
     # Túnel
-    echo -n "  ${YELLOW}Túnel:${NC}          "
+    echo -n "  ${YELLOW}Túnel:${NC}            "
+    local tun_alive=0
     if [ -f "$SCRIPT_DIR/.tunnel.pid" ]; then
         local pid=$(cat "$SCRIPT_DIR/.tunnel.pid")
         if kill -0 "$pid" 2>/dev/null; then
-            echo -e "${GREEN}✓ Rodando${NC}"
+            echo -e "${GREEN}✓ Rodando (PID: $pid)${NC}"
+            tun_alive=1
         else
-            echo -e "${RED}✗ Parou${NC}"
+            echo -e "${RED}✗ PID $pid parou${NC}"
         fi
-    else
+    fi
+    if [ "$tun_alive" = "0" ] && pgrep -f cloudflared >/dev/null 2>&1; then
+        echo -e "${GREEN}    → Cloudflared vivo (sem PID)${NC}"
+    elif [ "$tun_alive" = "0" ]; then
         echo -e "${YELLOW}○ Desligado${NC}"
     fi
 
-    # Ultima captura
     local cap_count=0
     if [ -f "$LOG_FILE" ]; then
         cap_count=$(wc -l < "$LOG_FILE" 2>/dev/null)
     fi
-    echo -e "  ${YELLOW}Capturas:${NC}      ${WHITE}$cap_count${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Capturas:${NC}        ${WHITE}$cap_count${NC}"
 
     echo ""
+    echo -e "  ${PURPLE}──── Arquivos ────${NC}"
 
-    # Arquivos
-    echo -e "  ${YELLOW}Arquivos:${NC}"
     if [ -f "$SCRIPT_DIR/server/server.js" ]; then
-        echo -e "    ${GREEN}✓${NC} server/server.js"
+        local js_size=$(wc -c < "$SCRIPT_DIR/server/server.js" 2>/dev/null | tr -d ' ')
+        echo -e "    ${GREEN}✓${NC} server/server.js (${js_size} bytes)"
     else
         echo -e "    ${RED}✗${NC} server/server.js"
     fi
-    if [ -f "$SCRIPT_DIR/server/server.js.map" ]; then rm -f "$SCRIPT_DIR/server/server.js.map"; fi
 
-    # Sites clonados
+    # clone_temp
+    if [ -d "$SCRIPT_DIR/clone_temp" ]; then
+        local tmp_count=$(ls "$SCRIPT_DIR/clone_temp" 2>/dev/null | wc -l)
+        echo -e "    ${GREEN}✓${NC} clone_temp/ ($tmp_count arquivos)"
+    fi
+
+    # captured_sites
     if [ -d "$CAPTURED_DIR" ]; then
         local site_count=$(ls -d "$CAPTURED_DIR"/*/ 2>/dev/null | wc -l)
-        echo -e "  ${YELLOW}Sites salvos:${NC}  ${WHITE}$site_count${NC}"
-    fi
-
-    # Logs
-    if [ -f "$SCRIPT_DIR/server.log" ]; then
-        echo -e "  ${YELLOW}Server.log:${NC}    $(wc -c < "$SCRIPT_DIR/server.log" 2>/dev/null | tr -d ' ') bytes"
-    fi
-    if [ -f "$SCRIPT_DIR/curl.log" ]; then
-        echo -e "  ${YELLOW}Curl.log:${NC}      $(wc -c < "$SCRIPT_DIR/curl.log" 2>/dev/null | tr -d ' ') bytes"
+        echo -e "  ${YELLOW}Sites salvos:${NC}    ${WHITE}$site_count${NC}"
     fi
 
     echo ""
-    echo -e "${YELLOW}Enter...${NC}"
+    echo -e "  ${PURPLE}──── Logs ────${NC}"
+
+    # server.log — mostrar última linha se existir
+    if [ -f "$SCRIPT_DIR/server.log" ]; then
+        local log_size=$(wc -c < "$SCRIPT_DIR/server.log" 2>/dev/null | tr -d ' ')
+        local last_line=$(tail -1 "$SCRIPT_DIR/server.log" 2>/dev/null)
+        echo -e "  ${YELLOW}Server.log:${NC}      ${log_size} bytes"
+        echo -e "    → ${last_line}"
+    else
+        echo -e "  ${YELLOW}Server.log:${NC}      ${RED}não existe${NC}"
+    fi
+
+    # curl.log — mostrar última linha se existir
+    if [ -f "$SCRIPT_DIR/curl.log" ]; then
+        local log_size=$(wc -c < "$SCRIPT_DIR/curl.log" 2>/dev/null | tr -d ' ')
+        local last_line=$(tail -1 "$SCRIPT_DIR/curl.log" 2>/dev/null)
+        echo -e "  ${YELLOW}Curl.log:${NC}        ${log_size} bytes"
+        echo -e "    → ${last_line}"
+    else
+        echo -e "  ${YELLOW}Curl.log:${NC}        ${RED}não existe${NC}"
+    fi
+
+    if [ -f "$SCRIPT_DIR/.tunnel.log" ]; then
+        local log_size=$(wc -c < "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | tr -d ' ')
+        local last_line=$(tail -1 "$SCRIPT_DIR/.tunnel.log" 2>/dev/null)
+        echo -e "  ${YELLOW}Tunnel.log:${NC}      ${log_size} bytes"
+        echo -e "    → ${last_line}"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Enter para voltar...${NC}"
     read
 }
 
