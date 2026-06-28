@@ -56,12 +56,20 @@ clone_site() {
 
     rm -rf "$SITE_DIR"/*
 
-    # curl com proxychains se disponível
+    # curl com proxychains se disponível e configurado
     local curl_cmd="curl"
     local curl_opts="-s -L -k --connect-timeout 15"
-    if command -v proxychains4 &>/dev/null; then
-        curl_cmd="proxychains4 curl"
+    local proxychains_conf=""
+    if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="$HOME/.proxychains/proxychains.conf"
+    elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+    fi
+    if command -v proxychains4 &>/dev/null && [ -n "$proxychains_conf" ]; then
+        curl_cmd="proxychains4 -f $proxychains_conf curl"
         echo -e "${GREEN}[ProxyChains ativo]${NC}"
+    else
+        echo -e "${YELLOW}[Sem proxy — direto]${NC}"
     fi
 
     local ua="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
