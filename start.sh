@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v18 - Funcional
+# 🎣 PHISHING LOCAL v29 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Parar 0 Sair
 # ============================================
 
@@ -733,24 +733,29 @@ stop_all() {
 # =============================================
 while true; do
     clear
-    echo -e "${PURPLE}"
-    echo "╔═══════════════════════════════════════════════╗"
-    echo "║         🎣 PHISHING LOCAL v18                ║"
-    echo "╚═══════════════════════════════════════════════╝"
-    echo -e "${NC}"
+    echo -e "${PURPLE}╔════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║${NC}  ${RED}██████╗ ██╗  ██╗██╗███████╗██╗  ██╗██╗███╗   ██╗${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${NC}  ${RED}██╔══██╗██║  ██║██║██╔════╝██║  ██║██║████╗  ██║${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${NC}  ${YELLOW}██████╔╝███████║██║███████╗███████║██║██╔██╗ ██║${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${NC}  ${YELLOW}██╔═══╝ ██╔══██║██║╚════██║██╔══██║██║██║╚██╗██║${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${NC}  ${GREEN}██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}║${NC}  ${GREEN}╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝${NC} ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╠════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${PURPLE}║${NC}  ${WHITE}🎣 PHISHING LOCAL ${YELLOW}v29${WHITE} — Clonador Profissional${NC}    ${PURPLE}║${NC}"
+    echo -e "${PURPLE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "  ${GREEN}1)${NC} 🎣 PHISH     - Clonar e iniciar"
-    echo -e "  ${GREEN}2)${NC} 📋 CAPTURAS  - Ver credenciais"
-    echo -e "  ${GREEN}3)${NC} 🌐 TÚNEL     - Criar URL pública"
-    echo -e "  ${GREEN}4)${NC} 📜 HISTÓRICO - Reusar clones"
+    echo -e "  ${GREEN}1)${NC} 🎣 PHISH      - Clonar e iniciar servidor"
+    echo -e "  ${GREEN}2)${NC} 📋 CAPTURAS  - Ver credenciais capturadas"
+    echo -e "  ${GREEN}3)${NC} 🌐 TÚNEL     - Criar URL pública (cloudflared)"
+    echo -e "  ${GREEN}4)${NC} 📜 HISTÓRICO - Reusar clones anteriores"
     echo -e "  ${GREEN}5)${NC} 📍 LOCALHOST - Ver IP e porta"
-    echo -e "  ${GREEN}6)${NC} 🔗 LINK      - Ver link do túnel"
-    echo -e "  ${GREEN}7)${NC} 📊 STATUS    - Ver tudo"
+    echo -e "  ${GREEN}6)${NC} 🔗 LINK      - Ver link do túnel ativo"
+    echo -e "  ${GREEN}7)${NC} 📊 STATUS    - Ver tudo do sistema"
     echo -e "  ${GREEN}8)${NC} 🛑 PARAR     - Desligar tudo"
     echo ""
     echo -e "  ${RED}0)${NC} ❌ SAIR"
     echo ""
-    echo -n "Escolha: "
+    echo -n "  ${YELLOW}Escolha: ${NC}"
     read OP
 
     case $OP in
