@@ -203,35 +203,39 @@ clone_site() {
         [ -z "$asset_url" ] && continue
         local asset_file="asset_${asset_count}_$(basename "$asset_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
         $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1
-        # Substituir URL pelo arquivo local
-        perl -i -pe "s|\Q${asset_url}\E|${asset_file}|g" "$SITE_DIR/index.html"
         asset_count=$((asset_count + 1))
     done < "$SCRIPT_DIR/.assets_list_sorted"
     rm -f "$SCRIPT_DIR/.assets_list" "$SCRIPT_DIR/.assets_list_sorted"
     echo -e "${GREEN}  → ${asset_count} assets baixados${NC}"
 
-    # Trocar URLs do domínio original pelo IP local (perl pra ser literal)
-    perl -i -pe "s|${base_domain}|${local_url}|g" "$SITE_DIR/index.html"
-    # Trocar www.dominio.com e dominio.com (com e sem https)
-    perl -i -pe "s|https://${domain_plain}|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|http://${domain_plain}|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|https://${domain_www}|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|http://${domain_www}|${local_url}|g" "$SITE_DIR/index.html"
-    # Trocar URLs que começam com // (protocol-relative)
-    perl -i -pe "s|//${domain_plain}/|${local_url}/|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|//${domain_www}/|${local_url}/|g" "$SITE_DIR/index.html"
-    # Trocar CDN (ex: static.cdninstagram.com, cdn.site.com) — substituição literal
+    # Coletar domínios CDN ANTES de qualquer substituição
     local cdn_domains=$(grep -oE 'https://[^./]+\.[^./]+\.com' "$SITE_DIR/index.html" 2>/dev/null | sort -u)
+    # Detectar todos os domínios http/https do HTML (que NÃO sejam nosso placeholder ou domínio-origem)
+    
+    # Trocar URLs do domínio original por IP local — usar placeholder pra evitar loops
+    local placeholder="___MYLOCALIP___"
+    perl -i -pe "s|\Q${base_domain}\E|${placeholder}|g" "$SITE_DIR/index.html"
+    # Trocar www.dominio.com e dominio.com (com e sem https)
+    perl -i -pe "s|\Qhttps://${domain_plain}\E|${placeholder}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|\Qhttp://${domain_plain}\E|${placeholder}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|\Qhttps://${domain_www}\E|${placeholder}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|\Qhttp://${domain_www}\E|${placeholder}|g" "$SITE_DIR/index.html"
+    # Trocar URLs que começam com // (protocol-relative)
+    perl -i -pe "s|//${domain_plain}/|${placeholder}/|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|//${domain_www}/|${placeholder}/|g" "$SITE_DIR/index.html"
+    # Trocar CDN
     for cdn in $cdn_domains; do
         local cdn_host=$(echo "$cdn" | sed 's|https\?://||')
-        perl -i -pe "s|\Q//${cdn_host}\E|${local_url}|g" "$SITE_DIR/index.html"
-        perl -i -pe "s|\Q${cdn_host}\E|${local_url}|g" "$SITE_DIR/index.html"
+        perl -i -pe "s|\Q//${cdn_host}\E|${placeholder}|g" "$SITE_DIR/index.html"
+        perl -i -pe "s|\Q${cdn_host}\E|${placeholder}|g" "$SITE_DIR/index.html"
         for css_file in "$SITE_DIR"/css_*.css; do
             [ -f "$css_file" ] || continue
-            perl -i -pe "s|\Q//${cdn_host}\E|${local_url}|g" "$css_file"
-            perl -i -pe "s|\Q${cdn_host}\E|${local_url}|g" "$css_file"
+            perl -i -pe "s|\Q//${cdn_host}\E|${placeholder}|g" "$css_file"
+            perl -i -pe "s|\Q${cdn_host}\E|${placeholder}|g" "$css_file"
         done
     done
+    # Trocar placeholder pelo URL real
+    sed -i "s|${placeholder}|${local_url}|g" "$SITE_DIR/index.html"
     # Remover integrações externas que denunciam clone
     sed -i 's/<script[^>]*src="https:\/\/connect\.facebook\.net[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
     sed -i 's/<script[^>]*src="https:\/\/platform\.twitter\.com[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
