@@ -83,12 +83,12 @@ clone_site() {
     # 2. Baixar CSS
     echo -e "${YELLOW}[2/4] Baixando CSS...${NC}"
     local css_count=0
-    grep -oP 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' | while read css_url; do
+    grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' | while read css_url; do
         [ -z "$css_url" ] && continue
         local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
-        if [[ "$css_url" == http* ]]; then
+        if echo "$css_url" | grep -q "^http"; then
             $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_url" >> "$SCRIPT_DIR/curl.log" 2>&1
-        elif [[ "$css_url" == /* ]]; then
+        elif echo "$css_url" | grep -q "^/"; then
             $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         else
             $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}/${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
@@ -101,12 +101,12 @@ clone_site() {
     # 3. Baixar JS
     echo -e "${YELLOW}[3/4] Baixando JS...${NC}"
     local js_count=0
-    grep -oP 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' | while read js_url; do
+    grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' | while read js_url; do
         [ -z "$js_url" ] && continue
         local js_file="js_${js_count}_$(basename "$js_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
-        if [[ "$js_url" == http* ]]; then
+        if echo "$js_url" | grep -q "^http"; then
             $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_url" >> "$SCRIPT_DIR/curl.log" 2>&1
-        elif [[ "$js_url" == /* ]]; then
+        elif echo "$js_url" | grep -q "^/"; then
             $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         else
             $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}/${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
@@ -271,7 +271,7 @@ start_tunnel() {
     sleep 6
 
     # Capturar URL
-    local tunnel_url=$(grep -oP 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
+    local tunnel_url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
 
     if [ -n "$tunnel_url" ] && [ "$tunnel_url" != "" ]; then
         echo ""
@@ -438,7 +438,7 @@ show_tunnel_link() {
         return
     fi
 
-    local tunnel_url=$(grep -oP 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
+    local tunnel_url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$SCRIPT_DIR/.tunnel.log" 2>/dev/null | head -1)
 
     if [ -n "$tunnel_url" ] && [ "$tunnel_url" != "" ]; then
         echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
@@ -511,12 +511,12 @@ while true; do
             echo -e "${YELLOW}URL do site:${NC} "
             read URL
             [ -z "$URL" ] && continue
-            [ "$URL" != "http"* ] && URL="https://$URL"
+            echo "$URL" | grep -q "^http" || URL="https://$URL"
 
             echo -e "${YELLOW}Redirect (Enter = mesma):${NC} "
             read REDIR
             [ -z "$REDIR" ] && REDIR="$URL"
-            [ "$REDIR" != "http"* ] && REDIR="https://$REDIR"
+            echo "$REDIR" | grep -q "^http" || REDIR="https://$REDIR"
 
             echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
             read PT
