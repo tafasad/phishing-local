@@ -178,8 +178,23 @@ clone_site() {
     echo -e "${CYAN}║  ${WHITE}http://${my_ip}:${port}${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
 
-    # Iniciar servidor e manter rodando
+    # Matar qualquer processo na porta antes de iniciar
     echo -e "${YELLOW}[...] Iniciando servidor na porta $port...${NC}"
+    # Matar node antigo por nome
+    pkill -9 -f "node.*server.js" 2>/dev/null
+    sleep 1
+    # Matar qualquer coisa na porta (tentar fuser)
+    if command -v fuser &>/dev/null; then
+        fuser -k "$port/tcp" 2>/dev/null
+    elif command -v lsof &>/dev/null; then
+        local old_pid=$(lsof -ti :$port 2>/dev/null)
+        [ -n "$old_pid" ] && kill -9 $old_pid 2>/dev/null
+    elif command -v netstat &>/dev/null; then
+        local old_pid=$(netstat -tlnp 2>/dev/null | grep ":$port " | grep -oE '[0-9]+/node' | cut -d/ -f1)
+        [ -n "$old_pid" ] && kill -9 $old_pid 2>/dev/null
+    fi
+    sleep 1
+
     cd "$SCRIPT_DIR"
     REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
     local pid=$!
