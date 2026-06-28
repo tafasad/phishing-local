@@ -142,25 +142,30 @@ clone_site() {
     rm -f "$css_list_file"
     echo -e "${GREEN}  → ${css_count} CSS baixados${NC}"
 
-    # 3. Baixar JS
+    # 3. Baixar JS — pega src="..." com .js
     echo -e "${YELLOW}[3/4] Baixando JS...${NC}"
     local js_count=0
     local js_list_file="$SCRIPT_DIR/.js_list"
     grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' > "$js_list_file"
+    # Também URLs relativos (src="//...")
+    grep -oE 'src="//[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//|https://|' >> "$js_list_file"
+    sort -u "$js_list_file" -o "$js_list_file"
     while IFS= read -r js_url; do
         [ -z "$js_url" ] && continue
-        local js_file="js_${js_count}_$(basename "$js_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
+        local js_file="js_${js_count}_$(basename "$js_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-40)"
         local js_abs=""
         if echo "$js_url" | grep -q "^http"; then
             js_abs="$js_url"
+        elif echo "$js_url" | grep -q "^//"; then
+            js_abs="https:$js_url"
         elif echo "$js_url" | grep -q "^/"; then
             js_abs="${base_domain}${js_url}"
         else
             js_abs="${base_domain}/${js_url}"
         fi
         $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
-        local escaped_url=$(echo "$js_url" | sed 's/[&/\]/\\&/g')
-        sed -i "s|src=\"${escaped_url}\"|src=\"${js_file}\"|g" "$SITE_DIR/index.html"
+        # Trocar no HTML usando perl (literal)
+        perl -i -pe "s|\Q${js_url}\E|${js_file}|g" "$SITE_DIR/index.html"
         js_count=$((js_count + 1))
     done < "$js_list_file"
     rm -f "$js_list_file"
@@ -183,14 +188,14 @@ clone_site() {
     echo -e "${YELLOW}[3.5] Baixando recursos do CDN...${NC}"
     local asset_count=0
     > "$SCRIPT_DIR/.assets_list"
-    # Extrair URLs de imagens/assets do HTML
-    grep -oE '(src|href|url)[^(]*"https?://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/.*"https/"https/' >> "$SCRIPT_DIR/.assets_list"
-    # Também URLs relativos no HTML (src="//...")
-    grep -oE 'src="//[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's|src="//|https://|' >> "$SCRIPT_DIR/.assets_list"
-    # Do CSS — url('...') e url("...") e url(...)
+    # Assets com https:// em atributos src/href
+    grep -oE '(src|href|action)="https?://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -d'"' -f2 >> "$SCRIPT_DIR/.assets_list"
+    # URLs relativos com //
+    grep -oE '"//[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -c3- >> "$SCRIPT_DIR/.assets_list"
+    # Do CSS
     for css_file in "$SITE_DIR"/css_*.css; do
         [ -f "$css_file" ] || continue
-        grep -oE 'url\([^)]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\)' "$css_file" 2>/dev/null | sed 's/url(//;s/).*//;s/["'"'"' ]//g' >> "$SCRIPT_DIR/.assets_list"
+        grep -oE 'url\([^)]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\)' "$css_file" 2>/dev/null | sed 's/url(//;s/).*//;s/#.*//;s/["'"'"' ]//g' >> "$SCRIPT_DIR/.assets_list"
     done
     sort -u "$SCRIPT_DIR/.assets_list" > "$SCRIPT_DIR/.assets_list_sorted"
     while IFS= read -r asset_url; do
@@ -198,27 +203,32 @@ clone_site() {
         [ -z "$asset_url" ] && continue
         local asset_file="asset_${asset_count}_$(basename "$asset_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
         $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1
+        # Substituir URL pelo arquivo local
+        perl -i -pe "s|\Q${asset_url}\E|${asset_file}|g" "$SITE_DIR/index.html"
         asset_count=$((asset_count + 1))
     done < "$SCRIPT_DIR/.assets_list_sorted"
     rm -f "$SCRIPT_DIR/.assets_list" "$SCRIPT_DIR/.assets_list_sorted"
     echo -e "${GREEN}  → ${asset_count} assets baixados${NC}"
 
     # Trocar URLs do domínio original pelo IP local (perl pra ser literal)
-    perl -i -pe "s|\Q${base_domain}\E|${local_url}|g" "$SITE_DIR/index.html"
-    # Trocar www.dominio.com e dominio.com
-    perl -i -pe "s|\Qhttps://${domain_plain}\E|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|\Qhttp://${domain_plain}\E|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|\Qhttps://${domain_www}\E|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe "s|\Qhttp://${domain_www}\E|${local_url}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|${base_domain}|${local_url}|g" "$SITE_DIR/index.html"
+    # Trocar www.dominio.com e dominio.com (com e sem https)
+    perl -i -pe "s|https://${domain_plain}|${local_url}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|http://${domain_plain}|${local_url}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|https://${domain_www}|${local_url}|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|http://${domain_www}|${local_url}|g" "$SITE_DIR/index.html"
+    # Trocar URLs que começam com // (protocol-relative)
+    perl -i -pe "s|//${domain_plain}/|${local_url}/|g" "$SITE_DIR/index.html"
+    perl -i -pe "s|//${domain_www}/|${local_url}/|g" "$SITE_DIR/index.html"
     # Trocar CDN (ex: static.cdninstagram.com, cdn.site.com) — substituição literal
     local cdn_domains=$(grep -oE 'https://[^./]+\.[^./]+\.com' "$SITE_DIR/index.html" 2>/dev/null | sort -u)
     for cdn in $cdn_domains; do
         local cdn_host=$(echo "$cdn" | sed 's|https\?://||')
-        # Usar perl pra substituição literal (sem regex interpretation)
+        perl -i -pe "s|\Q//${cdn_host}\E|${local_url}|g" "$SITE_DIR/index.html"
         perl -i -pe "s|\Q${cdn_host}\E|${local_url}|g" "$SITE_DIR/index.html"
-        # Trocar também nos CSS
         for css_file in "$SITE_DIR"/css_*.css; do
             [ -f "$css_file" ] || continue
+            perl -i -pe "s|\Q//${cdn_host}\E|${local_url}|g" "$css_file"
             perl -i -pe "s|\Q${cdn_host}\E|${local_url}|g" "$css_file"
         done
     done
