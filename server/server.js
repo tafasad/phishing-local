@@ -84,4 +84,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor: http://0.0.0.0:${PORT}`);
     console.log(`Log: ${LOG_FILE}`);
+    console.log(`Site: ${SITE_DIR}`);
+}).on('error', (err) => {
+    console.error(`ERRO: ${err.message}`);
 });

