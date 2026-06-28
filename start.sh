@@ -324,10 +324,10 @@ ENDSPA
             perl -i -pe "s|\Q${cdn_host}\E|${placeholder}|g" "$css_file"
         done
     done
-    sed -i "s|${placeholder}|${local_url}|g" "$SITE_DIR/index.html"
-    sed -i 's/<script[^>]*src="https:\/\/connect\.facebook\.net[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
-    sed -i 's/<script[^>]*src="https:\/\/platform\.twitter\.com[^"]*"[^>]*><\/script>//gI' "$SITE_DIR/index.html"
-    sed -i "s|http://${my_ip}|${local_url}|gI" "$SITE_DIR/index.html"
+    perl -i -pe "s|\Q${placeholder}\E|${local_url}|g" "$SITE_DIR/index.html"
+    perl -i -pe 's|<script[^>]*src="https?://connect\.facebook\.net[^"]*"[^>]*></script>||gI' "$SITE_DIR/index.html"
+    perl -i -pe 's|<script[^>]*src="https?://platform\.twitter\.com[^"]*"[^>]*></script>||gI' "$SITE_DIR/index.html"
+    perl -i -pe "s|http://\Q${my_ip}\E|${local_url}|gI" "$SITE_DIR/index.html"
 
     # Verificar links externos restantes
     local ext_count=$(grep -oE '(src|href)="https?://[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | grep -v 'localhost\|127\.0\.0\.1' | wc -l | tr -d ' ')
@@ -388,8 +388,8 @@ ENDSPA
     fi
 
     echo ""
-    echo -e "${YELLOW}Pressione Enter...${NC}"
-    read
+    echo -e "${YELLOW}Pressione Enter para volver ao menu...${NC}"
+    read dummy
 }
 
 # =============================================
@@ -588,7 +588,7 @@ show_history() {
             rm -rf "$SITE_DIR"/*
             cp -r "$d"/* "$SITE_DIR"/ 2>/dev/null
             local my_ip=$(get_my_ip)
-            sed -i "s|http://[0-9.]*:[0-9]*|http://${my_ip}:${p}|g" "$SITE_DIR/index.html"
+            perl -i -pe "s|http://[0-9.]+:[0-9]+|http://${my_ip}:${p}|g" "$SITE_DIR/index.html"
             cd "$SCRIPT_DIR"
             REDIRECT_URL="$r" PORT="$p" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
             echo "$!" > "$SCRIPT_DIR/.server.pid"
