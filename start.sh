@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v29 - Clonador Profissional
+# 🎣 PHISHING LOCAL v31 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Parar 0 Sair
 # ============================================
 
@@ -733,16 +733,16 @@ stop_all() {
 # =============================================
 while true; do
     clear
-    echo -e "${PURPLE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║${NC}  ${RED}██████╗ ██╗  ██╗██╗███████╗██╗  ██╗██╗███╗   ██╗${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}║${NC}  ${RED}██╔══██╗██║  ██║██║██╔════╝██║  ██║██║████╗  ██║${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}║${NC}  ${YELLOW}██████╔╝███████║██║███████╗███████║██║██╔██╗ ██║${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}║${NC}  ${YELLOW}██╔═══╝ ██╔══██║██║╚════██║██╔══██║██║██║╚██╗██║${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}║${NC}  ${GREEN}██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}║${NC}  ${GREEN}╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝${NC} ${PURPLE}║${NC}"
-    echo -e "${PURPLE}╠════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${PURPLE}║${NC}  ${WHITE}🎣 PHISHING LOCAL ${YELLOW}v29${WHITE} — Clonador Profissional${NC}    ${PURPLE}║${NC}"
-    echo -e "${PURPLE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║${NC}  ██████╗ ██╗  ██╗██╗███████╗██╗  ██╗██╗███╗   ██╗${NC} ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ██╔══██╗██║  ██║██║██╔════╝██║  ██║██║████╗  ██║${NC} ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ██████╔╝███████║██║███████╗███████║██║██╔██╗ ██║${NC} ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ██╔═══╝ ██╔══██║██║╚════██║██╔══██║██║██║╚██╗██║${NC} ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║${NC} ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝${NC} ${GREEN}║${NC}"
+    echo -e "${WHITE}╠════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${WHITE}║${NC}  🎣 PHISHING LOCAL ${YELLOW}v31${NC} — Clonador Profissional${NC}  ${WHITE}║${NC}"
+    echo -e "${WHITE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${GREEN}1)${NC} 🎣 PHISH      - Clonar e iniciar servidor"
     echo -e "  ${GREEN}2)${NC} 📋 CAPTURAS  - Ver credenciais capturadas"
