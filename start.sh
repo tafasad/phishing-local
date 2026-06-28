@@ -58,7 +58,7 @@ clone_site() {
 
     # curl com proxychains se disponível e configurado
     local curl_cmd="curl"
-    local curl_opts="-s -L -k --connect-timeout 15"
+    local curl_opts="-s -L -k --connect-timeout 15 --max-time 30"
     local proxychains_conf=""
     if [ -f "$HOME/.proxychains/proxychains.conf" ]; then
         proxychains_conf="$HOME/.proxychains/proxychains.conf"
@@ -72,11 +72,24 @@ clone_site() {
         echo -e "${YELLOW}[Sem proxy — direto]${NC}"
     fi
 
-    local ua="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
+    # Detectar redirect: pega a URL final após redirects
+    local final_url=$($curl_cmd -sI -L -k --connect-timeout 15 "$target_url" 2>/dev/null | grep -i "^location:" | tail -1 | sed 's/location: //i' | tr -d '
+')
+    if [ -n "$final_url" ] && ! echo "$final_url" | grep -q "^$target_url"; then
+        echo -e "${YELLOW}[Redirect detectado: $final_url${NC}"
+        target_url="$final_url"
+        # Extrair novo domínio base
+        base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\1|')
+    fi
 
-    # 1. Baixar HTML principal
-    echo -e "${YELLOW}[1/4] Baixando HTML...${NC}"
-    $curl_cmd $curl_opts -H "$ua" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
+    local ua="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
+    local accept="text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+    local lang="pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+
+    # 1. Baixar HTML principal (com delay pra esperar redirect/carregar)
+    echo -e "${YELLOW}[1/4] Baixando HTML (aguardando carregar)...${NC}"
+    sleep 3
+    $curl_cmd $curl_opts -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: identity" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
 
     if [ ! -s "$SITE_DIR/index.html" ]; then
         echo -e "${RED}[ERRO] Falha ao baixar o site.${NC}"
