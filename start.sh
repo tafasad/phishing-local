@@ -135,15 +135,65 @@ clone_site() {
 
     local base_domain=$(echo "$target_url" | sed -E 's|(https?://[^/]+).*|\1|')
 
-    # 1. Baixar HTML
+    # 1. Baixar HTML (com retry ate 3x)
     echo -e "${YELLOW}[1/6] Baixando HTML...${NC}"
     sleep 3
-    $curl_cmd $curl_opts --compressed -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: gzip, deflate, br" -H "Cache-Control: no-cache" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
 
-    if [ ! -s "$SITE_DIR/index.html" ]; then
-        echo -e "${RED}[X] Falha ao baixar (arquivo vazio)${NC}"
-        local err=$(tail -3 "$SCRIPT_DIR/curl.log" 2>/dev/null | head -1)
-        [ -n "$err" ] && echo -e "  ${RED}$err${NC}"
+    local html_size=0
+    local download_ok=0
+    local attempt=1
+    local max_attempts=3
+
+    while [ "$download_ok" = "0" ] && [ "$attempt" -le "$max_attempts" ]; do
+        if [ "$attempt" -gt 1 ]; then
+            echo -e "  ${YELLOW}Tentativa $attempt/$max_attempts...${NC}"
+            sleep 2
+        fi
+
+        $curl_cmd $curl_opts -w "\n%{http_code}" --compressed -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: gzip, deflate, br" -H "Cache-Control: no-cache" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
+
+        local http_code=$(tail -1 "$SCRIPT_DIR/curl.log" 2>/dev/null | grep -oE '^[0-9]{3}$' || echo "000")
+        sed -i '$ { /^[0-9]{3}$/d; }' "$SCRIPT_DIR/curl.log" 2>/dev/null
+
+        html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
+
+        if [ "$html_size" -gt 500 ] && [ "$http_code" != "000" ]; then
+            if grep -qiE 'cf-browser-verification|Just a moment|enable JavaScript|Verify you are human|Access denied|Forbidden|Your IP has been blocked|checking your browser' "$SITE_DIR/index.html" 2>/dev/null; then
+                echo -e "  ${RED}[$http_code] Site bloqueou acesso!${NC}"
+                rm -f "$SITE_DIR/index.html"
+                [ "$attempt" -eq "$max_attempts" ] && echo -e "  ${YELLOW}-> Tente com proxy (opcao 9)${NC}"
+            else
+                download_ok=1
+            fi
+        elif [ "$http_code" = "403" ] || [ "$http_code" = "401" ]; then
+            echo -e "  ${RED}[$http_code] Acesso negado!${NC}"
+            rm -f "$SITE_DIR/index.html"
+        elif [ "$http_code" = "000" ]; then
+            echo -e "  ${RED}[ERR] Sem conexao (timeout/rede)${NC}"
+            rm -f "$SITE_DIR/index.html"
+        else
+            [ "$html_size" -gt 500 ] && download_ok=1 || download_ok=1
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    if [ "$download_ok" = "0" ]; then
+        echo ""
+        echo -e "${RED}╔═══════════════════════════════════════╗${NC}"
+        echo -e "${RED}║     FALHA AO BAIXAR O SITE            ║${NC}"
+        echo -e "${RED}╚═══════════════════════════════════════╝${NC}"
+        echo -e "  ${WHITE}HTTP: $(tail -5 "$SCRIPT_DIR/curl.log" 2>/dev/null | grep -oE '[0-9]{3}' | tail -1 || echo '?')${NC}"
+        echo -e "  ${WHITE}Erros:${NC}"
+        grep -i "error\|could not\|timeout\|failed\|denied" "$SCRIPT_DIR/curl.log" 2>/dev/null | tail -3 | while read l; do echo -e "    ${RED}$l${NC}"; done
+        echo ""
+        echo -e "  ${YELLOW}Solucoes:${NC}"
+        echo -e "  - Use ${WHITE}https://${NC} ao inves de http"
+        echo -e "  - Use a opcao ${WHITE}9 \(Proxy\)${NC} se tiver proxy"
+        echo -e "  - Verifique sua conexao: ${WHITE}curl -sI ${target_url}${NC}"
+        echo ""
+        echo -e "${YELLOW}Pressione Enter...${NC}"
+        read
         return 1
     fi
 
