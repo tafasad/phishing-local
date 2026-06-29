@@ -1136,15 +1136,25 @@ do_paste_html() {
         fi
     else
         echo ""
-        echo -e "  ${WHITE}Cole o HTML abaixo.${NC}"
-        echo -e "  ${WHITE}Quando terminar, pressione Ctrl+D:${NC}"
+        echo -e "  ${WHITE}Cole o HTML (cole tudo, depois aperte Ctrl+D):${NC}"
         echo ""
 
         local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
         rm -f "$tmpfile"
 
-        # Ler tudo ate Ctrl+D (EOF)
-        cat > "$tmpfile" 2>/dev/null
+        # Metodo 1: cat com EOF detection
+        local content=""
+        local prev_line=""
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Detectar Ctrl+D (ultima linha vazia + EOF)
+            if [ -z "$line" ] && [ -z "$prev_line" ]; then
+                break
+            fi
+            prev_line="$line"
+            if [ -n "$line" ]; then
+                echo "$line" >> "$tmpfile"
+            fi
+        done
 
         if [ ! -s "$tmpfile" ]; then
             echo -e "${RED}  Nenhum HTML colado.${NC}"
@@ -1162,6 +1172,36 @@ do_paste_html() {
     rm -rf "$SITE_DIR"/*
     cp "$html_file" "$SITE_DIR/index.html"
     rm -f "$SCRIPT_DIR/.pasted_html.tmp"
+
+    # Baixar CSS externo se existir
+    local css_links=$(grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//')
+    if [ -n "$css_links" ]; then
+        echo -e "  ${YELLOW}Baixando CSS...${NC}"
+        echo "$css_links" | while read css_url; do
+            # Se for URL completa, baixa
+            echo "$css_url" | grep -q "^http" && curl -s -o "$SITE_DIR/styles.css" "$css_url" 2>/dev/null
+        done
+        # Substituir link pelo CSS local
+        sed -i 's|href="[^"]*\.css[^"]*"|href="styles.css"|g' "$SITE_DIR/index.html" 2>/dev/null
+        echo -e "  ${GREEN}CSS baixado!${NC}"
+    fi
+
+    # Baixar JS externo se existir
+    local js_links=$(grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//')
+    if [ -n "$js_links" ]; then
+        echo -e "  ${YELLOW}Baixando JS...${NC}"
+        local js_count=0
+        echo "$js_links" | while read js_url; do
+            echo "$js_url" | grep -q "^http" && curl -s -o "$SITE_DIR/script_${js_count}.js" "$js_url" 2>/dev/null && js_count=$((js_count + 1))
+        done
+        # Substituir src pelos JS locais
+        local idx=0
+        while grep -q 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null; do
+            sed -i "0,/src=\"[^\"]*\.js[^\"]*\"/s||src=\"script_${idx}.js\"|" "$SITE_DIR/index.html" 2>/dev/null
+            idx=$((idx + 1))
+        done
+        echo -e "  ${GREEN}JS baixado!${NC}"
+    fi
 
     local html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
     echo -e "  ${GREEN}HTML salvo: ${html_size} bytes${NC}"
