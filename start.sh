@@ -1334,16 +1334,21 @@ while true; do
             clear
             echo -e "  ${CYAN}═══ ATUALIZAR DO GITHUB ═══${NC}"
             echo ""
+            # Salvar mudancas locais antes de pular
+            git stash --quiet 2>/dev/null
             echo -n "  Puxando atualizacoes..."
             if timeout 60 git pull --quiet 2>/dev/null; then
                 echo -e " ${GREEN}OK${NC}"
                 chmod +x phish start.sh phish-update.sh 2>/dev/null
+                # Restaurar mudancas locais
+                git stash pop --quiet 2>/dev/null
                 echo ""
                 echo -e "  ${GREEN}Atualizado com sucesso!${NC}"
                 echo -e "  ${YELLOW}Reinicie o phish para aplicar: 0) SAIR e abra de novo${NC}"
             else
                 echo -e " ${RED}FALHA${NC}"
                 echo -e "  ${YELLOW}Rede indisponivel ou sem mudancas${NC}"
+                git stash pop --quiet 2>/dev/null
             fi
             echo ""
             echo -e "${YELLOW}Press Enter...${NC}"
