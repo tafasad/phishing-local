@@ -1,0 +1,19 @@
+# Logs
+curl.log
+server.log
+.tunnel.log
+
+# Temp/clones
+site_clone/
+captured_sites/
+.history
+.js_list
+.last_url
+
+# Backups
+*.bak
+*.bundle
+
+# Python temp
+push_content.py
+push_v41.py
