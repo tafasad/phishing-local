@@ -1119,7 +1119,7 @@ do_paste_html() {
     echo -e "${CYAN}         COLAR HTML${NC}"
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
-    echo -e "  ${YELLOW}Opcao 1: Colar HTML direto (simples)${NC}"
+    echo -e "  ${YELLOW}Opcao 1: Colar HTML direto${NC}"
     echo -e "  ${YELLOW}Opcao 2: Ler de arquivo .html${NC}"
     echo ""
     echo -n "  Escolha (1/2): "
@@ -1136,21 +1136,15 @@ do_paste_html() {
         fi
     else
         echo ""
-        echo -e "  ${WHITE}Cole o HTML e pressione Enter 2x (linha vazia) pra terminar:${NC}"
+        echo -e "  ${WHITE}Cole o HTML abaixo.${NC}"
+        echo -e "  ${WHITE}Quando terminar, pressione Ctrl+D:${NC}"
+        echo ""
+
         local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
         rm -f "$tmpfile"
 
-        # Ler ate linha vazia dupla
-        local empty_count=0
-        while IFS= read -r line; do
-            if [ -z "$line" ]; then
-                empty_count=$((empty_count + 1))
-                [ "$empty_count" -ge 2 ] && break
-            else
-                empty_count=0
-            fi
-            echo "$line" >> "$tmpfile"
-        done
+        # Ler tudo ate Ctrl+D (EOF)
+        cat > "$tmpfile" 2>/dev/null
 
         if [ ! -s "$tmpfile" ]; then
             echo -e "${RED}  Nenhum HTML colado.${NC}"
@@ -1164,7 +1158,7 @@ do_paste_html() {
     read PT
     [ -z "$PT" ] && PT=8080
 
-    # Limpar site_clone e mover HTML
+    # Limpar site_clone e copiar HTML
     rm -rf "$SITE_DIR"/*
     cp "$html_file" "$SITE_DIR/index.html"
     rm -f "$SCRIPT_DIR/.pasted_html.tmp"
