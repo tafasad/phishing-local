@@ -1167,11 +1167,8 @@ do_paste_html() {
         local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
         rm -f "$tmpfile"
 
-        # Metodo 1: cat com EOF detection
-        local content=""
         local prev_line=""
         while IFS= read -r line || [ -n "$line" ]; do
-            # Detectar Ctrl+D (ultima linha vazia + EOF)
             if [ -z "$line" ] && [ -z "$prev_line" ]; then
                 break
             fi
@@ -1198,7 +1195,7 @@ do_paste_html() {
     cp "$html_file" "$SITE_DIR/index.html"
     rm -f "$SCRIPT_DIR/.pasted_html.tmp"
 
-    # Baixar CSS externo se existir
+    # Tentar baixar CSS externo (best effort)
     local css_links=$(grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//')
     if [ -n "$css_links" ]; then
         echo -e "  ${YELLOW}Baixando CSS...${NC}"
@@ -1206,14 +1203,18 @@ do_paste_html() {
         while IFS= read -r css_url; do
             [ -z "$css_url" ] && continue
             echo "$css_url" | grep -q "^http" || css_url="https:$css_url"
-            curl -s -o "$SITE_DIR/css_${css_count}.css" "$css_url" 2>/dev/null
-            perl -i -pe "s|\Q${css_url}\E|css_${css_count}.css|g" "$SITE_DIR/index.html" 2>/dev/null
-            css_count=$((css_count + 1))
+            curl -s --connect-timeout 5 --max-time 10 -o "$SITE_DIR/css_${css_count}.css" "$css_url" 2>/dev/null
+            if [ -s "$SITE_DIR/css_${css_count}.css" ]; then
+                perl -i -pe "s|\Q${css_url}\E|css_${css_count}.css|g" "$SITE_DIR/index.html" 2>/dev/null
+                css_count=$((css_count + 1))
+            else
+                rm -f "$SITE_DIR/css_${css_count}.css" 2>/dev/null
+            fi
         done <<< "$css_links"
         echo -e "  ${GREEN}${css_count} CSS baixados!${NC}"
     fi
 
-    # Baixar JS externo se existir
+    # Tentar baixar JS externo (best effort)
     local js_links=$(grep -oE 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/src="//;s/"//')
     if [ -n "$js_links" ]; then
         echo -e "  ${YELLOW}Baixando JS...${NC}"
@@ -1221,9 +1222,13 @@ do_paste_html() {
         while IFS= read -r js_url; do
             [ -z "$js_url" ] && continue
             echo "$js_url" | grep -q "^http" || js_url="https:$js_url"
-            curl -s -o "$SITE_DIR/js_${js_count}.js" "$js_url" 2>/dev/null
-            perl -i -pe "s|\Q${js_url}\E|js_${js_count}.js|g" "$SITE_DIR/index.html" 2>/dev/null
-            js_count=$((js_count + 1))
+            curl -s --connect-timeout 5 --max-time 10 -o "$SITE_DIR/js_${js_count}.js" "$js_url" 2>/dev/null
+            if [ -s "$SITE_DIR/js_${js_count}.js" ]; then
+                perl -i -pe "s|\Q${js_url}\E|js_${js_count}.js|g" "$SITE_DIR/index.html" 2>/dev/null
+                js_count=$((js_count + 1))
+            else
+                rm -f "$SITE_DIR/js_${js_count}.js" 2>/dev/null
+            fi
         done <<< "$js_links"
         echo -e "  ${GREEN}${js_count} JS baixados!${NC}"
     fi
@@ -1236,11 +1241,36 @@ do_paste_html() {
     local srv_pid=$!
     disown $srv_pid 2>/dev/null
     echo "$srv_pid" > "$SCRIPT_DIR/.server.pid"
-    sleep 2
+    sleep 3
 
     if kill -0 "$srv_pid" 2>/dev/null; then
+        local my_ip=$(get_my_ip)
         echo -e "  ${GREEN}Servidor ON (PID: $srv_pid)${NC}"
-        echo -e "  ${GREEN}Acesse: http://localhost:${PT}${NC}"
+        echo -e "  ${GREEN}Local: http://${my_ip}:${PT}${NC}"
+        echo -e "  ${GREEN}Localhost: http://localhost:${PT}${NC}"
+        echo ""
+        # Abrir no navegador e tirar print
+        echo -e "  ${YELLOW}Abrindo no navegador...${NC}"
+        if command -v termux-open-url &>/dev/null; then
+            termux-open-url "http://localhost:${PT}" 2>/dev/null
+            sleep 4
+            echo -e "  ${YELLOW}Tirando print da tela...${NC}"
+            if command -v screencap &>/dev/null; then
+                local print_file="$SCRIPT_DIR/prints/site_$(date +%Y%m%d_%H%M).png"
+                mkdir -p "$SCRIPT_DIR/prints"
+                screencap -p "$print_file" 2>/dev/null
+                if [ -f "$print_file" ]; then
+                    echo -e "  ${GREEN}Print salvo: ${print_file}${NC}"
+                else
+                    echo -e "  ${RED}Falha ao tirar print${NC}"
+                fi
+            else
+                echo -e "  ${YELLOW}sreencap nao disponivel - tire print manualmente${NC}"
+            fi
+        else
+            echo -e "  ${YELLOW}termux-open-url nao disponivel${NC}"
+            echo -e "  ${WHITE}Abra: http://localhost:${PT} no navegador${NC}"
+        fi
     else
         echo -e "  ${RED}Servidor falhou!${NC}"
         tail -5 "$SCRIPT_DIR/server.log" 2>/dev/null
