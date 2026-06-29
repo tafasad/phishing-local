@@ -1098,23 +1098,45 @@ do_paste_html() {
     echo -e "${CYAN}         COLAR HTML${NC}"
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
-    echo -e "  ${YELLOW}Cole o HTML abaixo.${NC}"
-    echo -e "  ${WHITE}Quando terminar, digite FIM e pressione Enter.${NC}"
+    echo -e "  ${YELLOW}Opcao 1: Colar HTML direto (simples)${NC}"
+    echo -e "  ${YELLOW}Opcao 2: Ler de arquivo .html${NC}"
     echo ""
+    echo -n "  Escolha (1/2): "
+    read MODO
 
-    local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
-    rm -f "$tmpfile"
+    local html_file=""
 
-    # Ler linha por linha e salvar em arquivo tmp
-    while IFS= read -r line; do
-        [ "$line" = "FIM" ] && break
-        echo "$line" >> "$tmpfile"
-    done
-
-    if [ ! -s "$tmpfile" ]; then
-        echo -e "${RED}  Nenhum HTML colado.${NC}"
+    if [ "$MODO" = "2" ]; then
+        echo -n "  Caminho do arquivo (ex: /sdcard/site.html): "
+        read html_file
+        if [ ! -f "$html_file" ]; then
+            echo -e "${RED}  Arquivo nao encontrado!${NC}"
+            read; return
+        fi
+    else
+        echo ""
+        echo -e "  ${WHITE}Cole o HTML e pressione Enter 2x (linha vazia) pra terminar:${NC}"
+        local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
         rm -f "$tmpfile"
-        read; return
+
+        # Ler ate linha vazia dupla
+        local empty_count=0
+        while IFS= read -r line; do
+            if [ -z "$line" ]; then
+                empty_count=$((empty_count + 1))
+                [ "$empty_count" -ge 2 ] && break
+            else
+                empty_count=0
+            fi
+            echo "$line" >> "$tmpfile"
+        done
+
+        if [ ! -s "$tmpfile" ]; then
+            echo -e "${RED}  Nenhum HTML colado.${NC}"
+            rm -f "$tmpfile"
+            read; return
+        fi
+        html_file="$tmpfile"
     fi
 
     echo -e "${YELLOW}Porta (Enter = 8080):${NC} "
@@ -1123,7 +1145,8 @@ do_paste_html() {
 
     # Limpar site_clone e mover HTML
     rm -rf "$SITE_DIR"/*
-    mv "$tmpfile" "$SITE_DIR/index.html"
+    cp "$html_file" "$SITE_DIR/index.html"
+    rm -f "$SCRIPT_DIR/.pasted_html.tmp"
 
     local html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
     echo -e "  ${GREEN}HTML salvo: ${html_size} bytes${NC}"
