@@ -173,7 +173,7 @@ clone_site() {
     [ -z "$tech_title" ] && tech_title=$(echo "$target_url" | sed -E 's|.*://||;s|/$||')
 
     if [ "$is_spa" = "1" ]; then
-        echo -e "  Tech: ${RED}$spa_type (SPA)${NC}"
+        echo -e "  Tech: ${RED}$spa_type \(SPA\)${NC}"
         echo -e "  Titulo: $tech_title"
         echo -e "  HTML: ${html_size} bytes"
         echo -e "  ${RED}-> Site 100% JS. Clone real NAO e possivel.${NC}"
