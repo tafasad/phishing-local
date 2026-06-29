@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ ! -f "$SCRIPT_DIR/server/server.js" ]; then
     echo -e "${RED}[ERRO] server.js nao encontrado${NC}"
+    echo -e "${RED}[ERRO] SCRIPT_DIR=$SCRIPT_DIR${NC}"
     exit 1
 fi
 SITE_DIR="$SCRIPT_DIR/site_clone"
@@ -429,8 +430,18 @@ ENDSPA
     sleep 3
 
     if kill -0 "$pid" 2>/dev/null; then
-        echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
-        echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
+        # Verificar se index.html existe no SITE_DIR
+        if [ ! -s "$SITE_DIR/index.html" ]; then
+            echo -e "${YELLOW}[AVISO] Servidor ON mas index.html ausente!${NC}"
+            echo -e "  ${WHITE}SITE_DIR: $SITE_DIR${NC}"
+            echo -e "  ${WHITE}Arquivos em $SITE_DIR:${NC}"
+            ls -la "$SITE_DIR" 2>/dev/null | head -5 | while read l; do echo -e "    $l"; done
+            rm -f "$SCRIPT_DIR/.server.pid"
+        else
+            local html_sz=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
+            echo -e "${GREEN}[OK] Servidor rodando! PID: $pid${NC}"
+            echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC} (${html_sz} bytes)"
+        fi
     else
         echo -e "${RED}[ERRO] Servidor nao subiu (ou caiu)${NC}"
         echo -e "  ${WHITE}Log: $SCRIPT_DIR/server.log${NC}"
