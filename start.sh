@@ -189,13 +189,21 @@ clone_site() {
             if grep -qiE 'cf-browser-verification|Just a moment|enable JavaScript|Verify you are human|Access denied|Forbidden|Your IP has been blocked|checking your browser' "$SITE_DIR/index.html" 2>/dev/null; then
                 echo -e "  ${RED}[$http_code] Site bloqueou acesso!${NC}"
                 rm -f "$SITE_DIR/index.html"
-                [ "$attempt" -eq "$max_attempts" ] && echo -e "  ${YELLOW}-> Tente com proxy (opcao 9)${NC}"
+                [ "$attempt" -eq "$max_attempts" ] && echo -e "  ${YELLOW}-> Tente sem proxy ou use COLAR HTML${NC}"
+            elif [ "$http_code" = "404" ] && [ "$use_proxy" = "y" ]; then
+                echo -e "  ${RED}[404] Proxy detectado como bot - tentando sem proxy...${NC}"
+                rm -f "$SITE_DIR/index.html"
+                local pc_bak="$curl_cmd"
+                curl_cmd="curl"
+                attempt=$((attempt - 1))
+                use_proxy=""
             else
                 download_ok=1
             fi
         elif [ "$http_code" = "403" ] || [ "$http_code" = "401" ]; then
             echo -e "  ${RED}[$http_code] Acesso negado!${NC}"
             rm -f "$SITE_DIR/index.html"
+            [ "$use_proxy" = "y" ] && { echo -e "  ${YELLOW}-> Tentando sem proxy...${NC}; curl_cmd="curl"; use_proxy=""; attempt=$((attempt - 1)); }
         elif [ "$http_code" = "000" ]; then
             echo -e "  ${RED}[ERR] Sem conexao (timeout/rede)${NC}"
             rm -f "$SITE_DIR/index.html"
@@ -217,8 +225,9 @@ clone_site() {
         echo ""
         echo -e "  ${YELLOW}Solucoes:${NC}"
         echo -e "  - Use ${WHITE}https://${NC} ao inves de http"
-        echo -e "  - Use a opcao ${WHITE}9 \(Proxy\)${NC} se tiver proxy"
-        echo -e "  - Verifique sua conexao: ${WHITE}curl -sI ${target_url}${NC}"
+        echo -e "  - Sem proxy: ${WHITE}curl -sL ${target_url} | head -20${NC}"
+        echo -e "  - Se bloqueou: use ${WHITE}[5] COLAR HTML${NC} (copia do navegador)"
+        echo -e "  - Se SPA (Angular/React): ${WHITE}COLAR HTML${NC} e informa o dominio"
         echo ""
         echo -e "${YELLOW}Pressione Enter...${NC}"
         read
