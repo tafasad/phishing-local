@@ -474,8 +474,24 @@ ENDSPA
     echo "$pid" > "$SCRIPT_DIR/.server.pid"
     sleep 3
 
-    if kill -0 "$pid" 2>/dev/null; then
-        # Verificar se index.html existe no SITE_DIR
+    # Health check: verificar se o servidor responde
+    local check_count=0
+    local server_ready=0
+    while [ "$check_count" -lt 5 ]; do
+        if kill -0 "$pid" 2>/dev/null; then
+            # Tentar conectar na porta
+            if curl -s --connect-timeout 2 -o /dev/null "http://localhost:${port}" 2>/dev/null; then
+                server_ready=1
+                break
+            fi
+        else
+            break
+        fi
+        check_count=$((check_count + 1))
+        sleep 1
+    done
+
+    if [ "$server_ready" = "1" ]; then
         if [ ! -s "$SITE_DIR/index.html" ]; then
             echo -e "${YELLOW}[AVISO] Servidor ON mas index.html ausente!${NC}"
             echo -e "  ${WHITE}SITE_DIR: $SITE_DIR${NC}"
@@ -491,7 +507,7 @@ ENDSPA
         echo -e "${RED}[ERRO] Servidor nao subiu (ou caiu)${NC}"
         echo -e "  ${WHITE}Log: $SCRIPT_DIR/server.log${NC}"
         echo -e "  ${WHITE}---${NC}"
-        tail -5 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "  ${RED}$l${NC}"; done
+        tail -10 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "  ${RED}$l${NC}"; done
         echo -e "  ${WHITE}---${NC}"
         rm -f "$SCRIPT_DIR/.server.pid"
         echo -n "  Tentar de novo? (s/n): "
@@ -500,7 +516,7 @@ ENDSPA
             pkill -9 -f "node.*server.js" 2>/dev/null; sleep 2
             REDIRECT_URL="$redirect_url" PORT="$port" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
             pid=$!; disown "$pid" 2>/dev/null; echo "$pid" > "$SCRIPT_DIR/.server.pid"; sleep 3
-            if kill -0 "$pid" 2>/dev/null; then
+            if kill -0 "$pid" 2>/dev/null && curl -s --connect-timeout 2 -o /dev/null "http://localhost:${port}" 2>/dev/null; then
                 echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC}"
             else
                 echo -e "${RED}[ERRO] Falha novamente${NC}"
