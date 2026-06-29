@@ -1098,20 +1098,22 @@ do_paste_html() {
     echo -e "${CYAN}         COLAR HTML${NC}"
     echo -e "${CYAN}  ═══════════════════════════════════════${NC}"
     echo ""
-    echo -e "  ${YELLOW}Cole o HTML abaixo (fim = linha vazia + Enter):${NC}"
-    echo -e "  ${WHITE}(Cole o codigo HTML completo da pagina)${NC}"
+    echo -e "  ${YELLOW}Cole o HTML abaixo.${NC}"
+    echo -e "  ${WHITE}Quando terminar, digite FIM e pressione Enter.${NC}"
     echo ""
 
-    local html_content=""
-    local line
+    local tmpfile="$SCRIPT_DIR/.pasted_html.tmp"
+    rm -f "$tmpfile"
+
+    # Ler linha por linha e salvar em arquivo tmp
     while IFS= read -r line; do
-        [ -z "$line" ] && break
-        html_content="${html_content}${line}
-"
+        [ "$line" = "FIM" ] && break
+        echo "$line" >> "$tmpfile"
     done
 
-    if [ -z "$html_content" ]; then
+    if [ ! -s "$tmpfile" ]; then
         echo -e "${RED}  Nenhum HTML colado.${NC}"
+        rm -f "$tmpfile"
         read; return
     fi
 
@@ -1119,9 +1121,9 @@ do_paste_html() {
     read PT
     [ -z "$PT" ] && PT=8080
 
-    # Limpar site_clone e salvar HTML
+    # Limpar site_clone e mover HTML
     rm -rf "$SITE_DIR"/*
-    echo "$html_content" > "$SITE_DIR/index.html"
+    mv "$tmpfile" "$SITE_DIR/index.html"
 
     local html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
     echo -e "  ${GREEN}HTML salvo: ${html_size} bytes${NC}"
