@@ -6,6 +6,7 @@
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
+VERSAO="45"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -915,7 +916,7 @@ show_status() {
     echo -n "  Curl:    "; command -v curl &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${RED}NO${NC}"
     echo -n "  Proxy:   "; command -v proxychains4 &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${YELLOW}NO${NC}"
     echo -n "  Cloud:   "; command -v cloudflared &>/dev/null && echo -e "${GREEN}OK${NC}" || echo -e "${YELLOW}NO${NC}"
-    echo -n "  Ver:     ${WHITE}v42${NC}"
+    echo -n "  Ver:     ${WHITE}v45${NC}"
     echo ""
 
     # Processos
@@ -1082,20 +1083,27 @@ while true; do
     echo ""
     echo "  ─────────────────────────────────────────"
     echo ""
-    echo -e "  🎣 1) PHISH      - Clonar e iniciar"
-    echo -e "  📋 2) CAPTURAS  - Ver credenciais"
-    echo -e "  🌐 3) TÚNEL     - Link público"
-    echo -e "  📜 4) HISTÓRICO - Reusar clones"
-    echo -e "  📍 5) LOCALHOST - IP e abrir browser"
-    echo -e "  🔗 6) LINK      - Link do túnel"
-    echo -e "  📊 7) STATUS    - Sistema"
-    echo -e "  🛑 8) PARAR     - Desligar"
-    echo -e "  🔓 9) PROXY     - Clonar com proxy"
-    echo -e "  📦 c) SALVOS     - Biblioteca de clones"
+    # Cabecalho com info
+    echo -e "  ─────────────────────────────────────────"
+    echo -e "  ${GREEN}●${NC} = Servidor ON  ${RED}○${NC} = OFF  ${WHITE}🎣 v${VERSAO}${NC}"
+    echo -e "  ─────────────────────────────────────────"
     echo ""
-    echo -e "  ❌ 0) SAIR"
+
+    # Menu com cores fortes (cores separadas, sem arco-iris)
+    echo -e "  ${GREEN}[1] PHISH${NC}      Clonar site"
+    echo -e "  ${CYAN}[2] CAPTURAS${NC}   Dados recebidos"
+    echo -e "  ${YELLOW}[3] TUNEL${NC}      Link publico Cloudflare"
+    echo -e "  ${PURPLE}[4] HISTORICO${NC}  Banco de clones"
+    echo -e "  ${CYAN}[5] LOCALHOST${NC}   IP local + navegador"
+    echo -e "  ${YELLOW}[6] LINK${NC}       Verificar tunel"
+    echo -e "  ${WHITE}[7] STATUS${NC}     Sistema e logs"
+    echo -e "  ${RED}[8] PARAR${NC}      Servidor + tunel"
+    echo -e "  ${PURPLE}[9] PROXY${NC}      Clonar via proxy"
+    echo -e "  ${GREEN}[c] SALVOS${NC}     Biblioteca de clones"
     echo ""
-    echo -e "  ${CYAN}Escolha: ${NC}"
+    echo -e "  ${RED}[0] SAIR${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Escolha: ${NC}"
     read OP
 
     case $OP in
