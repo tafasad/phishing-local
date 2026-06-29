@@ -211,7 +211,7 @@ clone_site() {
             rm -f "$SITE_DIR/index.html"
             [ "$use_proxy" = "y" ] && { echo -e "  ${YELLOW}-> Tentando sem proxy...${NC}; curl_cmd="curl"; use_proxy=""; attempt=$((attempt - 1)); }
         elif [ "$http_code" = "000" ]; then
-            echo -e "  ${RED}[ERR] Sem conexao (timeout/rede)${NC}"
+            echo -e "  ${RED}[ERR] Sem conexao - timeout ou rede${NC}"
             rm -f "$SITE_DIR/index.html"
         else
             [ "$html_size" -gt 500 ] && download_ok=1 || download_ok=1
@@ -254,7 +254,7 @@ clone_site() {
     # Detectar bloqueio
     if grep -qiE 'cf-browser-verification|Just a moment|enable JavaScript|Verify you are human|Access denied|Forbidden|Your IP has been blocked|checking your browser' "$SITE_DIR/index.html" 2>/dev/null; then
         echo -e "${RED}  [WAF] Site bloqueou acesso!${NC}"
-        echo -e "  ${YELLOW}-> Tente com proxy (opcao 9)${NC}"
+        echo -e "  ${YELLOW}-> Tente com proxy - opcao 9${NC}"
         rm -f "$SITE_DIR/index.html"
         return 1
     fi
@@ -504,7 +504,7 @@ ENDSPA
             echo -e "${GREEN}[OK] http://${my_ip}:${port}${NC} (${html_sz} bytes)"
         fi
     else
-        echo -e "${RED}[ERRO] Servidor nao subiu (ou caiu)${NC}"
+        echo -e "${RED}[ERRO] Servidor nao subiu - caiu${NC}"
         echo -e "  ${WHITE}Log: $SCRIPT_DIR/server.log${NC}"
         echo -e "  ${WHITE}---${NC}"
         tail -10 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "  ${RED}$l${NC}"; done
@@ -1143,6 +1143,7 @@ do_proxy_clone() {
         echo -n "  Proxy (IP:PORTA): "
         read MANUAL_PROXY
         [ -z "$MANUAL_PROXY" ] && { read; return; }
+        [ -z "$HOME" ] && HOME="/data/data/com.termux/files/home"
         mkdir -p "$HOME/.proxychains"
         cat > "$HOME/.proxychains/proxychains.conf" << EOF
 strict_dns
@@ -1374,6 +1375,7 @@ do_config() {
             echo -n "  Proxy (ex: socks5 127.0.0.1 9050): "
             read PROXY_LINE
             if [ -n "$PROXY_LINE" ]; then
+                [ -z "$HOME" ] && HOME="/data/data/com.termux/files/home"
                 mkdir -p "$HOME/.proxychains"
                 echo "[ProxyList]" > "$HOME/.proxychains/proxychains.conf"
                 echo "$PROXY_LINE" >> "$HOME/.proxychains/proxychains.conf"
