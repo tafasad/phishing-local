@@ -133,20 +133,26 @@ clone_site() {
         local pc_conf=$(detect_proxy)
         if [ -n "$pc_conf" ]; then
             curl_cmd="proxychains4 -f $pc_conf curl"
-            echo -e "${GREEN}[Proxy ativo]${NC}"
+            curl_direct="curl"
+            echo -e "${GREEN}[Proxy ativo - HTML via proxy, assets direto]${NC}"
         else
             echo -e "${YELLOW}[Proxy indisponivel - instalando proxychains]${NC}"
             pkg install -y proxychains-ng 2>/dev/null
             pc_conf=$(detect_proxy)
             if [ -n "$pc_conf" ]; then
                 curl_cmd="proxychains4 -f $pc_conf curl"
+                curl_direct="curl"
                 echo -e "${GREEN}[Proxy ativo]${NC}"
             else
                 echo -e "${RED}[ERRO] Proxy nao disponivel${NC}"
+                curl_cmd="curl"
+                curl_direct="curl"
                 use_proxy=""
             fi
         fi
     else
+        curl_cmd="curl"
+        curl_direct="curl"
         echo -e "${YELLOW}[Sem proxy]${NC}"
     fi
 
@@ -271,12 +277,12 @@ clone_site() {
         echo -e "  ${RED}-> Site 100% JS. Clone real NAO e possivel.${NC}"
         echo -e "  ${YELLOW}-> Gerando pagina fake funcional${NC}"
 
-        $curl_cmd $curl_opts -s -o "$SITE_DIR/favicon.png" "${base_domain}/favicon.ico" 2>/dev/null
+        $curl_direct $curl_opts -s -o "$SITE_DIR/favicon.png" "${base_domain}/favicon.ico" 2>/dev/null
         local logo_url=$(grep -oE 'src="[^"]*logo[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | head -1 | sed 's/src="//;s/"//')
         [ -z "$logo_url" ] && logo_url=$(grep -oE 'href="[^"]*logo[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | head -1 | sed 's/href="//;s/"//')
         if [ -n "$logo_url" ]; then
             echo "$logo_url" | grep -q "^http" || { echo "$logo_url" | grep -q "^//" && logo_url="https:$logo_url" || logo_url="${base_domain}${logo_url}"; }
-            $curl_cmd $curl_opts -s -o "$SITE_DIR/logo.png" "$logo_url" 2>/dev/null
+            $curl_direct $curl_opts -s -o "$SITE_DIR/logo.png" "$logo_url" 2>/dev/null
         fi
 
         local main_color=$(grep -oE 'color:\s*#[0-9a-fA-F]{3,8}' "$SITE_DIR/index.html" 2>/dev/null | grep -oE '#[0-9a-fA-F]{3,8}' | tail -1)
@@ -350,7 +356,7 @@ ENDSPA
         elif echo "$css_url" | grep -q "^/"; then css_abs="${base_domain}${css_url}"
         else css_abs="${base_domain}/${css_url}"
         fi
-        $curl_cmd $curl_opts -H "Accept: text/css,*/*;q=0.1" -H "Referer: ${base_domain}/" -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
+        $curl_direct $curl_opts -H "Accept: text/css,*/*;q=0.1" -H "Referer: ${base_domain}/" -o "$SITE_DIR/$css_file" "$css_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
         perl -i -pe "s|\Q${css_url}\E|${css_file}|g" "$SITE_DIR/index.html"
         css_count=$((css_count + 1))
     done < "$css_list_file"
@@ -373,7 +379,7 @@ ENDSPA
         elif echo "$js_url" | grep -q "^/"; then js_abs="${base_domain}${js_url}"
         else js_abs="${base_domain}/${js_url}"
         fi
-        $curl_cmd $curl_opts -o "$SITE_DIR/$js_file" "$js_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
+        $curl_direct $curl_opts -o "$SITE_DIR/$js_file" "$js_abs" >> "$SCRIPT_DIR/curl.log" 2>&1
         perl -i -pe "s|\Q${js_url}\E|${js_file}|g" "$SITE_DIR/index.html"
         js_count=$((js_count + 1))
     done < "$js_list_file"
@@ -403,7 +409,7 @@ ENDSPA
         asset_url=$(echo "$asset_url" | sed 's|"||g')
         [ -z "$asset_url" ] && continue
         local asset_file="asset_${asset_count}_$(basename "$asset_url" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)"
-        timeout 10 $curl_cmd -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1 || true
+        timeout 10 $curl_direct -s -o "$SITE_DIR/$asset_file" "$asset_url" >> "$SCRIPT_DIR/curl.log" 2>&1 || true
         asset_count=$((asset_count + 1))
     done < "$SCRIPT_DIR/.assets_list_sorted"
     rm -f "$SCRIPT_DIR/.assets_list" "$SCRIPT_DIR/.assets_list_sorted"
