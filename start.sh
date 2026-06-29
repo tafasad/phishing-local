@@ -1193,6 +1193,17 @@ do_paste_html() {
     # Limpar site_clone e copiar HTML
     rm -rf "$SITE_DIR"/*
     cp "$html_file" "$SITE_DIR/index.html"
+
+    # Detectar se é SPA e pedir domínio base
+    local is_spa_html=0
+    if grep -qiE '<app-root|__NEXT_DATA__|data-reactroot|ng-version|vue-router|_nghost' "$SITE_DIR/index.html" 2>/dev/null; then
+        is_spa_html=1
+        echo -e "  ${RED}⚠ SPA detectado!${NC}"
+        echo -e "  ${YELLOW}  O HTML precisa dos JS pra renderizar.${NC}"
+        echo -n "  ${WHITE}Dominio base (ex: https://site.com.br): ${NC}"
+        read BASE_DOMAIN
+        echo "$BASE_DOMAIN" | grep -q "^http" || BASE_DOMAIN="https://$BASE_DOMAIN"
+    fi
     rm -f "$SCRIPT_DIR/.pasted_html.tmp"
 
     # Tentar baixar CSS externo (best effort)
@@ -1221,7 +1232,22 @@ do_paste_html() {
         local js_count=0
         while IFS= read -r js_url; do
             [ -z "$js_url" ] && continue
-            echo "$js_url" | grep -q "^http" || js_url="https:$js_url"
+            # Resolver URL relativa usando domínio base se disponível
+            if ! echo "$js_url" | grep -q "^http"; then
+                if [ "$is_spa_html" = "1" ] && [ -n "$BASE_DOMAIN" ]; then
+                    if echo "$js_url" | grep -q "^/"; then
+                        js_url="${BASE_DOMAIN}${js_url}"
+                    else
+                        js_url="${BASE_DOMAIN}/${js_url}"
+                    fi
+                else
+                    if echo "$js_url" | grep -q "^/"; then
+                        js_url="https:${js_url}"
+                    else
+                        js_url="https://localhost:8080/${js_url}"
+                    fi
+                fi
+            fi
             curl -s --connect-timeout 5 --max-time 10 -o "$SITE_DIR/js_${js_count}.js" "$js_url" 2>/dev/null
             if [ -s "$SITE_DIR/js_${js_count}.js" ]; then
                 perl -i -pe "s|\Q${js_url}\E|js_${js_count}.js|g" "$SITE_DIR/index.html" 2>/dev/null
