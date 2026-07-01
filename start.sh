@@ -402,8 +402,8 @@ ENDSPA
     echo -e "${YELLOW}[5/6] Baixando recursos...${NC}"
     local asset_count=0
     > "$SCRIPT_DIR/.assets_list"
-    grep -oE '(src|href|action)="https?://[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -d'"' -f2 >> "$SCRIPT_DIR/.assets_list"
-    grep -oE '"//[^"]*\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -c3- >> "$SCRIPT_DIR/.assets_list"
+    local asset_pattern='\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)'
+    grep -oE '"//[^"]*'"$asset_pattern"'[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -c3- >> "$SCRIPT_DIR/.assets_list"
     for css_file in "$SITE_DIR"/css_*.css; do
         [ -f "$css_file" ] || continue
         grep -oE 'url\\([^)]*\\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\\)' "$css_file" 2>/dev/null | perl -pe 's|url\(||;s|\).*||;s|[" ]||g' >> "$SCRIPT_DIR/.assets_list"
